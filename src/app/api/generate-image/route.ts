@@ -1,0 +1,141 @@
+import { NextRequest, NextResponse } from 'next/server';
+import OpenAI, { toFile } from 'openai';
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
+import { createReadStream } from 'fs';
+
+// Initialize the OpenAI client with your API key
+// In production, use environment variables for the API key
+const openai = new OpenAI({
+  apiKey: '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',
+});
+
+// IMPORTANT: This API route uses the OpenAI Images Generate API with gpt-image-1 model
+// Format follows the official documentation at https://platform.openai.com/docs/api-reference/images/create
+export async function POST(request: NextRequest) {
+  try {
+    // Parse the request body
+    const body = await request.json();
+    const { imageUrl, roomType, styleNotes } = body;
+
+    // Validate required fields
+    if (!imageUrl) {
+      return NextResponse.json(
+        { error: 'Image URL is required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('Server: Processing image generation request');
+    console.log('Server: Image URL:', imageUrl);
+    console.log('Server: Room Type:', roomType);
+    console.log('Server: Style Notes:', styleNotes);
+
+    try {
+      // Build the prompt exactly as requested
+      const prompt = `Create an image and turn the attached image into a real-estate ready image, make it more inviting. Do Not change any fixed building items such as walls, windows and doors. 
+
+Keep the same aspect ratio.
+ 
+Do not change any colours of the actual house walls interior or exterior.
+
+This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes} style` : ''}.`;
+      
+      console.log('Server: Using Images Generate API prompt:', prompt);
+      
+      try {
+        // Download the image from the URL
+        console.log('Server: Downloading image from URL');
+        const imageResponse = await fetch(imageUrl);
+        if (!imageResponse.ok) {
+          throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+        }
+        
+        // Get the image as a buffer
+        const imageBuffer = await imageResponse.arrayBuffer();
+        
+        // Save the image to a temporary file
+        const tempDir = os.tmpdir();
+        const imagePath = path.join(tempDir, `image-${Date.now()}.jpg`);
+        await fs.writeFile(imagePath, Buffer.from(imageBuffer));
+        
+        console.log('Server: Image downloaded and saved to', imagePath);
+        
+        // Create a file object from the image data for the OpenAI API
+        console.log('Server: Preparing image for OpenAI API');
+        const imageStream = createReadStream(imagePath);
+        const imageFile = await toFile(imageStream, null, { type: 'image/jpeg' });
+        
+        // Call the OpenAI Images Edit API using the SDK
+        console.log('Server: Calling OpenAI Images Edit API with gpt-image-1 model');
+        console.log('Server: Using prompt:', prompt);
+        
+        const response = await openai.images.edit({
+          model: "gpt-image-1",
+          image: imageFile,
+          prompt: prompt,
+          n: 1,
+          size: "1024x1024",
+          quality: "high" // Request high-quality images for better downloads
+        });
+        
+        console.log('Server: OpenAI Images Edit API response received');
+        console.log('Server: OpenAI API response structure:', JSON.stringify(response, null, 2));
+        
+        // Clean up the temporary file
+        await fs.unlink(imagePath).catch(err => console.error('Error deleting temp file:', err));
+        
+        // Handle the response
+        if (response.data && response.data.length > 0) {
+          let generatedImageUrl;
+          
+          // Check if response contains a URL
+          if (response.data[0].url) {
+            generatedImageUrl = response.data[0].url;
+            console.log('Server: Generated image URL from direct URL');
+          } 
+          // Check if response contains base64 data
+          else if (response.data[0].b64_json) {
+            // Convert base64 to URL by creating a data URL
+            generatedImageUrl = `data:image/png;base64,${response.data[0].b64_json}`;
+            console.log('Server: Generated image URL from base64 data');
+          }
+          
+          if (generatedImageUrl) {
+            console.log('Server: Generated image URL:', generatedImageUrl.substring(0, 50) + '...');
+            
+            return NextResponse.json({ 
+              generatedImageUrl,
+              success: true
+            });
+          }
+        }
+        
+        // If we get here, the response structure was invalid
+        console.error('Server: Invalid response structure from OpenAI:', response);
+        throw new Error('Invalid response structure from OpenAI API');
+
+      } catch (openaiError) {
+        console.error('Server: OpenAI API error:', openaiError);
+        throw openaiError;
+      }
+    } catch (apiError: any) {
+      console.error('Server: API error:', apiError);
+      
+      // For demo/development, return the original image as fallback
+      return NextResponse.json({ 
+        generatedImageUrl: imageUrl,
+        success: false,
+        error: apiError.message || 'Failed to generate image'
+      });
+    }
+  } catch (error: any) {
+    console.error('Server: Error in API route:', error);
+    
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
