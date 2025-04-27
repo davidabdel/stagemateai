@@ -1,5 +1,29 @@
 # StageMate AI
 
+## Deployment Instructions
+
+### Vercel Setup
+
+1. Connect your GitHub repository to Vercel
+2. Add the following environment variables in your Vercel project settings:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+OPENAI_API_KEY=your_openai_api_key
+
+# Clerk Authentication (Required)
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+CLERK_WEBHOOK_SECRET=your_clerk_webhook_secret
+```
+
+3. Deploy your project
+
+### Local Development
+
+Create a `.env.local` file with the same variables as above for local development.
+
 StageMate AI is a powerful SaaS platform designed for real estate agents who want to eliminate the need for professional photographers or staging. With StageMate AI, agents can transform ordinary room photos into clean, virtually staged real estate images using advanced AI technology.
 
 ## Features
