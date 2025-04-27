@@ -5,13 +5,12 @@ import path from 'path';
 import os from 'os';
 import { createReadStream } from 'fs';
 
-// Initialize the OpenAI client with your API key
-// In production, use environment variables for the API key
+// Initialize the OpenAI client with your API key from environment variables
 const openai = new OpenAI({
-  apiKey: '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',
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// IMPORTANT: This API route uses the OpenAI Images Generate API with gpt-image-1 model
+// IMPORTANT: This API route uses the OpenAI Images Edit API with gpt-image-1 model
 // Format follows the official documentation at https://platform.openai.com/docs/api-reference/images/create
 export async function POST(request: NextRequest) {
   try {
