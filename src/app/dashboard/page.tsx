@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getListings, Listing, deleteListing } from "@/utils/supabaseService";
+import { getListings, Listing, deleteListing, getUserCredits, UserCredits } from "@/utils/supabaseService";
 import { checkAuth, signOut } from "@/utils/authUtils";
 import { supabase } from "@/utils/supabaseClient";
 
@@ -14,6 +14,8 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [user, setUser] = useState<any>(null);
+  const [userCredits, setUserCredits] = useState<UserCredits | null>(null);
+  const [creditsLoading, setCreditsLoading] = useState(true);
   
   // Check authentication
   useEffect(() => {
@@ -25,6 +27,30 @@ export default function Dashboard() {
         return;
       }
       setUser(user);
+      
+      // Fetch user credits once authenticated
+      fetchUserCredits(user.id);
+    }
+    
+    // Function to fetch user credits
+    async function fetchUserCredits(userId: string) {
+      try {
+        setCreditsLoading(true);
+        const { data, error } = await getUserCredits(userId);
+        
+        if (error) throw error;
+        
+        setUserCredits(data);
+        
+        // If credits are 0, redirect to upgrade page
+        if (data && data.credits_remaining === 0) {
+          router.push('/dashboard/upgrade');
+        }
+      } catch (err) {
+        console.error("Error fetching user credits:", err);
+      } finally {
+        setCreditsLoading(false);
+      }
     }
     
     checkAuthentication();
@@ -131,22 +157,6 @@ export default function Dashboard() {
               >
                 My Listings
               </button>
-              <button
-                onClick={() => setActiveTab('staged')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'staged' 
-                  ? 'border-[#2563eb] text-[#2563eb] dark:text-[#60a5fa]' 
-                  : 'border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#475569] dark:hover:text-[#cbd5e1]'}`}
-              >
-                Staged Photos
-              </button>
-              <button
-                onClick={() => setActiveTab('analytics')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'analytics' 
-                  ? 'border-[#2563eb] text-[#2563eb] dark:text-[#60a5fa]' 
-                  : 'border-transparent text-[#64748b] dark:text-[#94a3b8] hover:text-[#475569] dark:hover:text-[#cbd5e1]'}`}
-              >
-                Analytics
-              </button>
             </nav>
           </div>
           
@@ -243,63 +253,49 @@ export default function Dashboard() {
             </div>
           )}
           
-          {/* Staged Photos Tab Content */}
-          {activeTab === 'staged' && (
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white">Staged Photos</h3>
-                <button className="rounded-full bg-[#2563eb] hover:bg-[#1e40af] text-white font-semibold px-6 py-2 text-sm shadow-lg transition-colors">
-                  Upload New Photo
-                </button>
-              </div>
-              
-              {/* Empty State */}
-              <div className="bg-[#f1f5f9] dark:bg-[#27272a] rounded-xl p-8 text-center">
-                <div className="mb-4 text-[#64748b] dark:text-[#94a3b8]">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <h4 className="text-lg font-medium text-[#1d2939] dark:text-white mb-2">No staged photos yet</h4>
-                <p className="text-[#64748b] dark:text-[#94a3b8] mb-6">Upload a photo to transform it with AI virtual staging</p>
-                <button className="rounded-full bg-[#2563eb] hover:bg-[#1e40af] text-white font-semibold px-6 py-3 text-base shadow-lg transition-colors">
-                  Upload Your First Photo
-                </button>
-              </div>
-            </div>
-          )}
-          
-          {/* Analytics Tab Content */}
-          {activeTab === 'analytics' && (
-            <div>
-              <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-4">Analytics & Insights</h3>
-              <div className="bg-[#f1f5f9] dark:bg-[#27272a] rounded-xl p-6">
-                <p className="text-[#64748b] dark:text-[#94a3b8]">Analytics will be available once you have active listings and staged photos.</p>
-              </div>
-            </div>
-          )}
+
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white dark:bg-[#18181b] rounded-xl shadow-lg p-6">
             <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-2">Usage</h3>
-            <div className="flex items-center justify-between">
-              <p className="text-[#64748b] dark:text-[#94a3b8]">Free photos remaining</p>
-              <span className="text-2xl font-bold text-[#2563eb]">3</span>
-            </div>
-            <div className="mt-4 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-              <div className="bg-[#2563eb] h-2.5 rounded-full w-0"></div>
-            </div>
+            {creditsLoading ? (
+              <div className="flex items-center justify-center py-2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#2563eb]"></div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-[#64748b] dark:text-[#94a3b8]">
+                    {userCredits?.plan_type === 'free' ? 'Free photos remaining' : 'Credits remaining'}
+                  </p>
+                  <span className="text-2xl font-bold text-[#2563eb]">
+                    {userCredits?.credits_remaining || 0}
+                  </span>
+                </div>
+                <div className="mt-4 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                  <div 
+                    className="bg-[#2563eb] h-2.5 rounded-full transition-all duration-500" 
+                    style={{ 
+                      width: userCredits ? `${Math.min(100, (userCredits.credits_remaining / 3) * 100)}%` : '0%' 
+                    }}
+                  ></div>
+                </div>
+                {userCredits?.credits_remaining === 0 && (
+                  <div className="mt-3">
+                    <Link 
+                      href="/dashboard/upgrade" 
+                      className="text-sm text-[#2563eb] hover:underline"
+                    >
+                      Upgrade for more credits
+                    </Link>
+                  </div>
+                )}
+              </>
+            )}
           </div>
           
-          <div className="bg-white dark:bg-[#18181b] rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-2">Quick Actions</h3>
-            <div className="flex flex-col space-y-2">
-              <Link href="/dashboard/add-listing" className="text-[#2563eb] hover:underline">Add new listing</Link>
-              <Link href="#" className="text-[#2563eb] hover:underline">Upload photo for staging</Link>
-              <Link href="#" className="text-[#2563eb] hover:underline">View pricing plans</Link>
-            </div>
-          </div>
+
           
           <div className="bg-white dark:bg-[#18181b] rounded-xl shadow-lg p-6">
             <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-2">Need Help?</h3>

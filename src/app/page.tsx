@@ -1,10 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
+import { HeroSection } from "../components/hero-section";
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Hero Section with Before/After */}
+    <main className="flex flex-col min-h-screen">
+      {/* Hero Section with Animated Text */}
       <section className="relative bg-gradient-to-r from-[#1e293b] to-[#0f172a] text-white overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-[#1e293b]/90 to-[#0f172a]/90 z-10"></div>
         
@@ -14,62 +15,54 @@ export default function Home() {
           <div className="absolute bottom-10 right-10 w-60 h-60 rounded-full bg-cyan-400 filter blur-3xl"></div>
         </div>
         
-        <div className="container mx-auto px-4 py-16 md:py-24 relative z-20">
-          <div className="flex flex-col lg:flex-row items-center gap-12">
-            {/* Text Content */}
-            <div className="lg:w-1/2 space-y-6 text-center lg:text-left">
-              <div className="inline-block px-3 py-1 bg-blue-600/20 rounded-full text-blue-400 text-sm font-medium mb-2">
-                AI-Powered Virtual Staging
+        <div className="relative z-20">
+          <HeroSection />
+        </div>
+        
+        {/* Before/After Showcase */}
+        <div className="container mx-auto px-4 pb-16 md:pb-24 relative z-20">
+          <h2 className="text-2xl font-bold text-center text-white mb-8">See the Transformation</h2>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
+            {/* The "BEFORE" image */}
+            <div className="relative rounded-lg overflow-hidden shadow-2xl w-full md:w-2/5">
+              <div className="absolute top-4 left-4 bg-black/70 text-white text-xs font-bold px-3 py-1 rounded-full z-10">
+                BEFORE
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">StageMate AI</span>
-                <span className="block mt-2">Transform Your Listings</span>
-              </h1>
-              <p className="text-lg text-gray-300 max-w-xl mx-auto lg:mx-0">
-                Instantly turn empty or outdated rooms into beautifully staged spaces with our AI technology. No photographers, no designers, no waiting.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-4">
-                <Link href="/auth" className="rounded-md bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold px-8 py-4 text-lg shadow-lg transition-all transform hover:scale-105">
-                  Try it now – Free
-                </Link>
-                <Link href="/dashboard" className="rounded-md bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white font-semibold px-8 py-4 text-lg shadow-lg transition-all border border-white/20">
-                  View Examples
-                </Link>
-              </div>
-              <p className="text-sm text-gray-400">No credit card required. Start with 3 free photos.</p>
+              <Image 
+                src="https://images.unsplash.com/photo-1600210492493-0946911123ea?q=80&w=1000" 
+                alt="Before staging - Room with exercise equipment" 
+                width={500} 
+                height={350}
+                className="w-full h-auto object-cover"
+              />
             </div>
             
-            {/* Before/After Showcase */}
-            <div className="lg:w-1/2 relative">
-              <div className="relative w-full max-w-lg mx-auto">
-                {/* The "BEFORE" image */}
-                <div className="relative rounded-lg overflow-hidden shadow-2xl">
-                  <div className="absolute top-4 left-4 bg-black/70 text-white text-xs font-bold px-3 py-1 rounded-full z-10">
-                    BEFORE
-                  </div>
-                  <Image 
-                    src="/images/before-living-room.jpg" 
-                    alt="Before staging" 
-                    width={600} 
-                    height={400}
-                    className="w-full h-auto object-cover"
-                  />
-                </div>
-                
-                {/* The "AFTER" image (positioned to overlap) */}
-                <div className="absolute -bottom-10 -right-10 w-3/4 rounded-lg overflow-hidden shadow-2xl border-4 border-white dark:border-gray-900 transform transition-all hover:scale-105">
-                  <div className="absolute top-4 left-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-xs font-bold px-3 py-1 rounded-full z-10">
-                    AFTER
-                  </div>
-                  <Image 
-                    src="/images/after-living-room.jpg" 
-                    alt="After AI staging" 
-                    width={600} 
-                    height={400}
-                    className="w-full h-auto object-cover"
-                  />
-                </div>
+            {/* Arrow pointing from before to after */}
+            <div className="flex items-center justify-center py-4 md:py-0">
+              <div className="hidden md:block w-16 h-16 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full flex items-center justify-center shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
               </div>
+              <div className="block md:hidden w-12 h-12 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full flex items-center justify-center shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+              </div>
+            </div>
+            
+            {/* The "AFTER" image */}
+            <div className="relative rounded-lg overflow-hidden shadow-2xl w-full md:w-2/5">
+              <div className="absolute top-4 left-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-xs font-bold px-3 py-1 rounded-full z-10">
+                AFTER
+              </div>
+              <Image 
+                src="https://images.unsplash.com/photo-1616046229478-9901c5536a45?q=80&w=1000" 
+                alt="After AI staging - Elegantly furnished living room" 
+                width={500} 
+                height={350}
+                className="w-full h-auto object-cover"
+              />
             </div>
           </div>
         </div>
@@ -124,6 +117,6 @@ export default function Home() {
           </Link>
         </div>
       </section>
-    </div>
+    </main>
   );
 }

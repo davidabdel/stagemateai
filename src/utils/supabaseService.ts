@@ -1,5 +1,14 @@
 import { supabase } from './supabaseClient';
 
+// User credits interface
+export interface UserCredits {
+  id?: string;
+  user_id: string;
+  credits_remaining: number;
+  plan_type: string;
+  updated_at?: string;
+}
+
 export interface Listing {
   id?: string;
   title: string;
@@ -71,5 +80,91 @@ export async function deleteListing(id: string) {
   } catch (error) {
     console.error('Error deleting listing:', error);
     return { error };
+  }
+}
+
+// Get user credits
+export async function getUserCredits(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('user_usage')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error) {
+      // If no record exists, create one with default free credits
+      if (error.code === 'PGRST116') {
+        return createUserCredits(userId);
+      }
+      throw error;
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error fetching user credits:', error);
+    return { data: null, error };
+  }
+}
+
+// Create initial user credits
+export async function createUserCredits(userId: string) {
+  try {
+    const newUserCredits = {
+      user_id: userId,
+      credits_remaining: 3, // Default free credits
+      plan_type: 'free'
+    };
+    
+    const { data, error } = await supabase
+      .from('user_usage')
+      .insert([newUserCredits])
+      .select();
+    
+    if (error) throw error;
+    return { data: data[0], error: null };
+  } catch (error) {
+    console.error('Error creating user credits:', error);
+    return { data: null, error };
+  }
+}
+
+// Update user credits
+export async function updateUserCredits(userId: string, creditsRemaining: number) {
+  try {
+    const { data, error } = await supabase
+      .from('user_usage')
+      .update({ credits_remaining: creditsRemaining, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select();
+    
+    if (error) throw error;
+    return { data: data[0], error: null };
+  } catch (error) {
+    console.error('Error updating user credits:', error);
+    return { data: null, error };
+  }
+}
+
+// Decrement user credits
+export async function decrementUserCredits(userId: string) {
+  try {
+    // First get current credits
+    const { data: currentCredits, error: fetchError } = await getUserCredits(userId);
+    
+    if (fetchError) throw fetchError;
+    if (!currentCredits) throw new Error('No credits record found');
+    
+    // Calculate new credits value (don't go below 0)
+    const newCreditsValue = Math.max(0, currentCredits.credits_remaining - 1);
+    
+    // Update with new value
+    const { data, error } = await updateUserCredits(userId, newCreditsValue);
+    
+    if (error) throw error;
+    return { data, error: null, creditsRemaining: newCreditsValue };
+  } catch (error) {
+    console.error('Error decrementing user credits:', error);
+    return { data: null, error, creditsRemaining: 0 };
   }
 }

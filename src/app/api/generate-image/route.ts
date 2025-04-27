@@ -4,6 +4,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { createReadStream } from 'fs';
+import { getUserCredits, decrementUserCredits } from '@/utils/supabaseService';
+import { supabase } from '@/utils/supabaseClient';
 
 // Initialize the OpenAI client with your API key from environment variables
 const openai = new OpenAI({
@@ -16,7 +18,15 @@ export async function POST(request: NextRequest) {
   try {
     // Parse the request body
     const body = await request.json();
-    const { imageUrl, roomType, styleNotes } = body;
+    const { imageUrl, roomType, styleNotes, userId } = body;
+    
+    // Check if userId is provided
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
     if (!imageUrl) {
@@ -30,6 +40,29 @@ export async function POST(request: NextRequest) {
     console.log('Server: Image URL:', imageUrl);
     console.log('Server: Room Type:', roomType);
     console.log('Server: Style Notes:', styleNotes);
+    console.log('Server: User ID:', userId);
+    
+    // Check user credits
+    const { data: userCredits, error: creditsError } = await getUserCredits(userId);
+    
+    if (creditsError) {
+      console.error('Server: Error fetching user credits:', creditsError);
+      return NextResponse.json(
+        { error: 'Error checking user credits' },
+        { status: 500 }
+      );
+    }
+    
+    // Check if user has enough credits
+    if (!userCredits || userCredits.credits_remaining <= 0) {
+      console.log('Server: User has no credits remaining');
+      return NextResponse.json(
+        { error: 'No credits remaining. Please upgrade your plan.' },
+        { status: 403 }
+      );
+    }
+    
+    console.log('Server: User has', userCredits.credits_remaining, 'credits remaining');
 
     try {
       // Build the prompt exactly as requested
@@ -104,9 +137,20 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
           if (generatedImageUrl) {
             console.log('Server: Generated image URL:', generatedImageUrl.substring(0, 50) + '...');
             
+            // Decrement user credits after successful image generation
+            const { creditsRemaining, error: decrementError } = await decrementUserCredits(userId);
+            
+            if (decrementError) {
+              console.error('Server: Error decrementing user credits:', decrementError);
+              // Continue anyway since the image was generated successfully
+            } else {
+              console.log('Server: Credits decremented successfully. Remaining credits:', creditsRemaining);
+            }
+            
             return NextResponse.json({ 
               generatedImageUrl,
-              success: true
+              success: true,
+              creditsRemaining
             });
           }
         }
