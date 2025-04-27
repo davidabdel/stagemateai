@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StageMate AI
+
+StageMate AI is a powerful SaaS platform designed for real estate agents who want to eliminate the need for professional photographers or staging. With StageMate AI, agents can transform ordinary room photos into clean, virtually staged real estate images using advanced AI technology.
+
+## Features
+
+- **AI-Powered Image Transformation**: Transform messy room photos into professionally staged images
+- **High-Quality Downloads**: Download AI-generated images in high resolution for marketing materials
+- **Multiple Room Types**: Support for living rooms, bedrooms, kitchens, bathrooms, and more
+- **Custom Styling**: Add style notes to guide the AI in creating the perfect look
+- **Batch Processing**: Queue multiple photos for efficient processing
+- **Real-Time Feedback**: Clear processing notifications keep you informed
+
+## Technology Stack
+
+- **Frontend**: Next.js with React
+- **Backend**: Next.js API Routes
+- **Authentication**: Supabase Auth
+- **Database**: Supabase PostgreSQL
+- **Storage**: Supabase Storage
+- **AI Image Generation**: OpenAI Images Edit API with gpt-image-1 model
+- **Styling**: TailwindCSS
+
+## Implementation Details
+
+### OpenAI Integration
+
+StageMate AI uses the OpenAI Images Edit API with the gpt-image-1 model to transform original property photos into AI-staged versions. The implementation follows the official OpenAI documentation format:
+
+```typescript
+// Call the OpenAI Images Edit API
+const response = await openai.images.edit({
+  model: "gpt-image-1",
+  image: imageFile, // Properly formatted using toFile and createReadStream
+  prompt: prompt,   // Includes room type and style notes
+  n: 1,
+  size: "1024x1024",
+  quality: "high"   // Request high-quality images for better downloads
+});
+```
+
+### Storage Structure
+
+- **original-photos**: Stores uploaded property photos
+- **staged-photos**: Stores AI-generated staged photos
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `OPENAI_API_KEY`
+4. Run the development server: `npm run dev`
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Usage
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Sign up or log in to your account
+2. Create a property listing
+3. Upload property photos
+4. Select room type and add style notes
+5. Submit for AI processing
+6. Download the high-quality staged images
