@@ -9,10 +9,10 @@ export function HeroSection() {
         "stunning",
         "professional", 
         "elegant", 
-        "modern", 
-        "inviting"
+        "inviting", 
+        "Market-Ready Listings"
       ]}
-      heading="Transform empty spaces into"
+      heading="Instantly Turn Messy Homes into "
       description="Instantly turn empty or outdated rooms into beautifully staged spaces with our AI technology. No photographers, no designers, no waiting."
       primaryButtonText="Try it now – Free"
       secondaryButtonText="View Examples"
