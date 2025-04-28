@@ -8,7 +8,7 @@ import { checkAuth } from "@/utils/authUtils";
 
 export default function AddListing() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ id: string } | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     address: ""
@@ -37,17 +37,18 @@ export default function AddListing() {
     }));
   };
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  // State for tracking form submission status and errors
+  const [_submitting, setSubmitting] = useState(false);
+  const [_submitError, setSubmitError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setError("");
+    setSubmitting(true);
+    setSubmitError("");
     
     try {
       // Save to Supabase with user ID
-      const { data, error } = await createListing({
+      const { error } = await createListing({
         title: formData.title,
         address: formData.address,
         user_id: user?.id
@@ -62,9 +63,9 @@ export default function AddListing() {
       window.location.href = "/dashboard";
     } catch (err) {
       console.error("Error creating listing:", err);
-      setError("Failed to create listing. Please try again.");
+      setSubmitError("Failed to create listing. Please try again.");
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 

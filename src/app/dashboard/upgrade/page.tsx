@@ -8,7 +8,8 @@ import { useEffect, useState } from "react";
 
 export default function UpgradePage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  // Store authenticated user information
+  const [_user, setUser] = useState<{ id: string } | null>(null);
   
   // Check authentication
   useEffect(() => {
@@ -43,7 +44,7 @@ export default function UpgradePage() {
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-[#1d2939] dark:text-white mb-4">Upgrade Your Plan</h2>
             <p className="text-[#475569] dark:text-[#cbd5e1] max-w-2xl mx-auto">
-              You've used all your free credits. Upgrade to continue transforming your real estate photos with AI.
+              You&apos;ve used all your free credits. Upgrade to continue transforming your real estate photos with AI.
             </p>
           </div>
           

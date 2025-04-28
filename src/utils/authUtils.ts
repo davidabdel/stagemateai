@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { redirect } from 'next/navigation';
+// Removed unused import: import { redirect } from 'next/navigation';
 
 // Check if user is authenticated
 export async function checkAuth() {

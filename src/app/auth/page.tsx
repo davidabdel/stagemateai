@@ -22,7 +22,7 @@ export default function AuthPage() {
       setError("");
       
       // Sign in with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -33,9 +33,9 @@ export default function AuthPage() {
 
       // Successful login
       window.location.href = "/dashboard";
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Login error:", err);
-      setError(err.message || "Failed to sign in. Please check your credentials.");
+      setError(err instanceof Error ? err.message : "Failed to sign in. Please check your credentials.");
     } finally {
       setIsLoading(false);
     }
@@ -52,7 +52,7 @@ export default function AuthPage() {
       setError("");
       
       // Sign up with Supabase
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
       });
@@ -63,9 +63,9 @@ export default function AuthPage() {
 
       // Show confirmation message
       alert("Check your email for the confirmation link!");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Signup error:", err);
-      setError(err.message || "Failed to sign up. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to sign up. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +92,7 @@ export default function AuthPage() {
             placeholder="Password"
             className="rounded-md border border-[#e5e7eb] dark:border-[#334155] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#2563eb] bg-[#f8fafc] dark:bg-[#23272f] text-[#1e293b] dark:text-white"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
             required
           />
@@ -117,7 +117,7 @@ export default function AuthPage() {
         </form>
         
         <div className="mt-6 pt-6 border-t border-[#e5e7eb] dark:border-[#334155]">
-          <p className="text-center text-[#64748b] dark:text-[#cbd5e1] mb-4">Don't have an account?</p>
+          <p className="text-center text-[#64748b] dark:text-[#cbd5e1] mb-4">Don&apos;t have an account?</p>
           <button
             onClick={handleSignUp}
             className="w-full rounded-md border border-[#2563eb] text-[#2563eb] hover:bg-[#2563eb] hover:text-white font-semibold py-3 transition-colors flex justify-center items-center"

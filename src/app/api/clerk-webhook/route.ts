@@ -17,7 +17,6 @@ export async function POST(req: Request) {
 
   // Get the body
   const payload = await req.json();
-  const body = JSON.stringify(payload);
 
   // Create a new user with default credits when a user signs up
   if (payload.type === "user.created") {

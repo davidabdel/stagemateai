@@ -10,24 +10,26 @@ import { generateStagedImage } from '@/utils/openaiService';
 export default function ClientPage() {
   const router = useRouter();
   const [id, setId] = useState('');
-  const [user, setUser] = useState(null);
-  const [listing, setListing] = useState(null);
-  const [photos, setPhotos] = useState([]);
+  // Define a more flexible type for the user state to handle Supabase User object
+  const [user, setUser] = useState<any>(null);
+  const [_listing, setListing] = useState(null);
+  // Define proper type for photos array
+  const [photos, setPhotos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   
   // File upload state
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileName, setSelectedFileName] = useState('');
   const [roomType, setRoomType] = useState('living_room');
   const [styleNotes, setStyleNotes] = useState('');
   const [uploadError, setUploadError] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [processingPhoto, setProcessingPhoto] = useState(false);
+  const [uploading, _setUploading] = useState(false);
+  const [_processingPhoto, setProcessingPhoto] = useState(false);
   const [processingError, setProcessingError] = useState('');
   
   // Queue for multiple photos
-  const [photoQueue, setPhotoQueue] = useState([]);
+  const [photoQueue, setPhotoQueue] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Processing notification state
@@ -109,9 +111,10 @@ export default function ClientPage() {
   }, [id, router]);
   
   // Handle file selection
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
       setSelectedFile(file);
       setSelectedFileName(file.name);
       setUploadError('');
@@ -119,12 +122,12 @@ export default function ClientPage() {
   };
   
   // Handle room type selection
-  const handleRoomTypeChange = (e) => {
+  const handleRoomTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setRoomType(e.target.value);
   };
   
   // Handle style notes input
-  const handleStyleNotesChange = (e) => {
+  const handleStyleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setStyleNotes(e.target.value);
   };
   
@@ -152,7 +155,7 @@ export default function ClientPage() {
   };
   
   // Remove photo from queue
-  const removeFromQueue = (index) => {
+  const removeFromQueue = (index: number) => {
     const newQueue = [...photoQueue];
     newQueue.splice(index, 1);
     setPhotoQueue(newQueue);
@@ -191,7 +194,7 @@ export default function ClientPage() {
           console.log(`Processing photo ${i+1}/${photoQueue.length}:`, filePath);
           
           // 1. Upload file to Supabase Storage
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('original-photos')
             .upload(filePath, currentPhoto.file);
             
@@ -235,7 +238,7 @@ export default function ClientPage() {
           // Call OpenAI API to generate a staged image
           console.log('Calling OpenAI API to generate staged image');
           try {
-            const stagedImageUrl = await generateStagedImage(publicUrl, currentPhoto.roomType, currentPhoto.styleNotes);
+            const stagedImageUrl = await generateStagedImage(publicUrl, currentPhoto.roomType, currentPhoto.styleNotes, user.id);
             
             // Update the photo record with the staged image URL
             const { error: updateError } = await supabase
@@ -282,10 +285,10 @@ export default function ClientPage() {
       // Clear the queue after processing all photos
       setPhotoQueue([]);
       
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error processing photos:', err);
-      setProcessingError(err.message || 'An error occurred');
-      setUploadError(err.message || 'Failed to process photos');
+      setProcessingError(err instanceof Error ? err.message : 'An error occurred');
+      setUploadError(err instanceof Error ? err.message : 'Failed to process photos');
     } finally {
       setProcessingPhoto(false);
       setIsSubmitting(false);
@@ -294,7 +297,8 @@ export default function ClientPage() {
   };
   
   // Process a single photo (for backward compatibility)
-  const processPhotoWithAI = async () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _processPhotoWithAI = async () => {
     if (!selectedFile) {
       setUploadError('Please select a photo first');
       return;
@@ -313,7 +317,7 @@ export default function ClientPage() {
   };
   
   // Handle photo deletion
-  const handleDeletePhoto = async (photoId) => {
+  const handleDeletePhoto = async (photoId: string) => {
     try {
       const { error } = await supabase
         .from('photos')
@@ -366,7 +370,7 @@ export default function ClientPage() {
               <h3 className="text-lg font-semibold text-[#1d2939] dark:text-white">Processing Images with AI</h3>
             </div>
             <p className="text-[#64748b] dark:text-[#94a3b8] mb-6">
-              We're currently processing {processingCount} image{processingCount !== 1 ? 's' : ''} with OpenAI. This may take a few minutes.
+              We&apos;re currently processing {processingCount} image{processingCount !== 1 ? 's' : ''} with OpenAI. This may take a few minutes.
             </p>
             <div className="flex justify-between items-center">
               <p className="text-sm text-[#64748b] dark:text-[#94a3b8]">
@@ -503,7 +507,7 @@ export default function ClientPage() {
         {/* Photos Display */}
         <div className="bg-[#f8fafc] dark:bg-[#23272f] rounded-xl overflow-hidden shadow-md">
           {photos.length > 0 ? (
-            photos.map((photo, index) => (
+            photos.map((photo) => (
               <div key={photo.id} className="grid grid-cols-2 gap-2">
                 <div className="p-2">
                   <div className="text-xs font-medium text-[#64748b] dark:text-[#94a3b8] mb-1">

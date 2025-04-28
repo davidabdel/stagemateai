@@ -13,7 +13,8 @@ export default function Dashboard() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [user, setUser] = useState<any>(null);
+  // Store authenticated user information
+  const [_user, setUser] = useState<{ id: string } | null>(null);
   const [userCredits, setUserCredits] = useState<UserCredits | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(true);
   

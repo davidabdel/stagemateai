@@ -5,7 +5,6 @@ import path from 'path';
 import os from 'os';
 import { createReadStream } from 'fs';
 import { getUserCredits, decrementUserCredits } from '@/utils/supabaseService';
-import { supabase } from '@/utils/supabaseClient';
 
 // Initialize the OpenAI client with your API key from environment variables
 const openai = new OpenAI({
@@ -163,21 +162,21 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         console.error('Server: OpenAI API error:', openaiError);
         throw openaiError;
       }
-    } catch (apiError: any) {
+    } catch (apiError: unknown) {
       console.error('Server: API error:', apiError);
       
       // For demo/development, return the original image as fallback
       return NextResponse.json({ 
         generatedImageUrl: imageUrl,
         success: false,
-        error: apiError.message || 'Failed to generate image'
+        error: apiError instanceof Error ? apiError.message : 'Failed to generate image'
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Server: Error in API route:', error);
     
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
