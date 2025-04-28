@@ -112,7 +112,13 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gradient-to-b from-[#f8fafc] to-[#e0e7ef] dark:from-[#0a0a0a] dark:to-[#23272f]">
       <header className="bg-white dark:bg-[#18181b] shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-[#2563eb]">StageMate AI</h1>
+          <Link href="/dashboard" className="flex items-center">
+            <img 
+              src="/images/3.png" 
+              alt="StageMate Logo" 
+              style={{ height: '40px', width: 'auto' }}
+            />
+          </Link>
           <nav className="flex items-center">
             <Link href="#" className="text-[#64748b] dark:text-[#cbd5e1] hover:text-[#2563eb] dark:hover:text-[#60a5fa] mx-4">
               Settings
@@ -132,11 +138,11 @@ export default function Dashboard() {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white dark:bg-[#18181b] rounded-2xl shadow-xl p-8 mb-8">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-6">
             <h2 className="text-3xl font-bold text-[#1d2939] dark:text-white">Welcome to your Dashboard</h2>
             <div>
               <button 
-                className="rounded-full bg-[#2563eb] hover:bg-[#1e40af] text-white font-semibold px-6 py-3 text-base shadow-lg transition-colors"
+                className="rounded-lg sm:rounded-full bg-[#2563eb] hover:bg-[#1e40af] text-white font-semibold px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base shadow-lg transition-colors w-full sm:w-auto"
                 onClick={() => window.location.href = '/dashboard/add-listing'}
               >
                 + Add New Listing
@@ -144,7 +150,7 @@ export default function Dashboard() {
             </div>
           </div>
           <p className="text-[#475569] dark:text-[#cbd5e1] mb-6">
-            Manage your real estate listings and virtual staging projects. You have 3 free photos available.
+            Manage your real estate listings and virtual staging projects. You have {creditsLoading ? '...' : userCredits?.credits_remaining || 0} photo{(userCredits?.credits_remaining === 1) ? '' : 's'} remaining.
           </p>
           
           {/* Tab Navigation */}
@@ -164,10 +170,10 @@ export default function Dashboard() {
           {/* Listings Tab Content */}
           {activeTab === 'listings' && (
             <div>
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4">
                 <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white">Your Listings</h3>
-                <div className="flex space-x-2">
-                  <select className="bg-[#f8fafc] dark:bg-[#27272a] border border-[#e5e7eb] dark:border-[#334155] rounded-md px-3 py-2 text-sm">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+                  <select className="bg-[#f8fafc] dark:bg-[#27272a] border border-[#e5e7eb] dark:border-[#334155] rounded-md px-3 py-2 text-sm w-full sm:w-auto">
                     <option>All Listings</option>
                     <option>Active</option>
                     <option>Draft</option>
@@ -175,7 +181,7 @@ export default function Dashboard() {
                   <input 
                     type="text" 
                     placeholder="Search listings..." 
-                    className="bg-[#f8fafc] dark:bg-[#27272a] border border-[#e5e7eb] dark:border-[#334155] rounded-md px-3 py-2 text-sm"
+                    className="bg-[#f8fafc] dark:bg-[#27272a] border border-[#e5e7eb] dark:border-[#334155] rounded-md px-3 py-2 text-sm w-full sm:w-auto"
                   />
                 </div>
               </div>
@@ -213,14 +219,14 @@ export default function Dashboard() {
                 </div>
               ) : (
                 /* Listings Table */
-                <div className="bg-white dark:bg-[#18181b] rounded-xl overflow-hidden shadow-md">
+                <div className="bg-white dark:bg-[#18181b] rounded-xl overflow-x-auto shadow-md">
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-800">
                       <tr>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Address</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created</th>
-                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[120px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-[#18181b] divide-y divide-gray-200 dark:divide-gray-700">
@@ -234,12 +240,12 @@ export default function Dashboard() {
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <Link 
                               href={`/dashboard/listing/${listing.id}`}
-                              className="text-[#2563eb] hover:text-[#1e40af] mr-4"
+                              className="text-[#2563eb] hover:text-[#1e40af] mr-4 inline-block"
                             >
                               View
                             </Link>
                             <button 
-                              className="text-red-600 hover:text-red-800"
+                              className="text-red-600 hover:text-red-800 inline-block"
                               onClick={() => handleDeleteListing(listing.id || '')}
                             >
                               Delete
@@ -282,16 +288,19 @@ export default function Dashboard() {
                     }}
                   ></div>
                 </div>
-                {userCredits?.credits_remaining === 0 && (
-                  <div className="mt-3">
-                    <Link 
-                      href="/dashboard/upgrade" 
-                      className="text-sm text-[#2563eb] hover:underline"
-                    >
-                      Upgrade for more credits
-                    </Link>
-                  </div>
-                )}
+                <div className="mt-4 flex justify-between items-center">
+                  {userCredits?.credits_remaining === 0 ? (
+                    <span className="text-sm text-red-500">No credits remaining</span>
+                  ) : (
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Need more credits?</span>
+                  )}
+                  <Link 
+                    href="/dashboard/upgrade" 
+                    className="px-4 py-2 bg-[#2563eb] hover:bg-[#1e40af] text-white text-sm font-medium rounded-md shadow-sm transition-colors"
+                  >
+                    Add Credits
+                  </Link>
+                </div>
               </>
             )}
           </div>

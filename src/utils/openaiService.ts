@@ -29,6 +29,12 @@ export async function generateStagedImage(imageUrl: string, roomType: string, st
       });
       
       if (!response.ok) {
+        // Check if this is a no credits error (403 Forbidden)
+        if (response.status === 403) {
+          const errorData = await response.json();
+          throw new Error('NO_CREDITS_REMAINING');
+        }
+        
         const errorText = await response.text();
         throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
       }

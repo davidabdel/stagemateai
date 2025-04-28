@@ -32,8 +32,9 @@ export default function Home() {
             <div className="flex flex-col items-center text-center gap-8">
               {/* AI-Powered badge removed */}
               
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight max-w-5xl w-[120%] mx-auto">
-                Instantly Turn Messy Homes<br />into Market-Ready Listings
+              <h1 className="text-3xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight max-w-5xl md:w-[120%] mx-auto">
+                <span className="block text-3xl md:text-6xl lg:text-7xl">Instantly Turn Messy Homes</span>
+                <span className="block text-3xl md:text-6xl lg:text-7xl">into Market-Ready Listings</span>
               </h1>
               
               <p className="text-lg md:text-xl text-gray-600 max-w-2xl">

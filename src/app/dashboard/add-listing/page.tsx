@@ -73,7 +73,13 @@ export default function AddListing() {
     <div className="min-h-screen bg-gradient-to-b from-[#f8fafc] to-[#e0e7ef] dark:from-[#0a0a0a] dark:to-[#23272f]">
       <header className="bg-white dark:bg-[#18181b] shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-[#2563eb]">StageMate AI</h1>
+          <Link href="/dashboard" className="flex items-center">
+            <img 
+              src="/images/3.png" 
+              alt="StageMate Logo" 
+              style={{ height: '40px', width: 'auto' }}
+            />
+          </Link>
           <nav className="flex items-center">
             <Link href="/dashboard" className="text-[#64748b] dark:text-[#cbd5e1] hover:text-[#2563eb] dark:hover:text-[#60a5fa]">
               Back to Dashboard

@@ -4,8 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabaseClient';
-import { checkAuth } from '@/utils/authUtils';
+import { checkAuth, signOut } from '@/utils/authUtils';
 import { generateStagedImage } from '@/utils/openaiService';
+import { getUserCredits } from '@/utils/supabaseService';
+import NoCreditsModal from '@/components/NoCreditsModal';
 
 export default function ClientPage() {
   const router = useRouter();
@@ -35,6 +37,11 @@ export default function ClientPage() {
   // Processing notification state
   const [showProcessingNotification, setShowProcessingNotification] = useState(false);
   const [processingCount, setProcessingCount] = useState(0);
+  const [showNoCreditsModal, setShowNoCreditsModal] = useState(false);
+  
+  // User credits state
+  const [userCredits, setUserCredits] = useState<any>(null);
+  const [creditsLoading, setCreditsLoading] = useState(true);
   
   // Room type options
   const roomTypes = [
@@ -57,6 +64,22 @@ export default function ClientPage() {
     }
   }, []);
   
+  // Function to fetch user credits
+  async function fetchUserCredits(userId: string) {
+    try {
+      setCreditsLoading(true);
+      const { data, error } = await getUserCredits(userId);
+      
+      if (error) throw error;
+      
+      setUserCredits(data);
+    } catch (err) {
+      console.error("Error fetching user credits:", err);
+    } finally {
+      setCreditsLoading(false);
+    }
+  }
+  
   useEffect(() => {
     if (!id) return;
     
@@ -70,6 +93,9 @@ export default function ClientPage() {
         }
         
         setUser(currentUser);
+        
+        // Fetch user credits
+        fetchUserCredits(currentUser.id);
         
         // Get listing details directly from Supabase
         const { data: listingData, error: listingError } = await supabase
@@ -131,10 +157,24 @@ export default function ClientPage() {
     setStyleNotes(e.target.value);
   };
   
+  // Check if user has credits
+  const checkCredits = () => {
+    if (!userCredits || userCredits.credits_remaining <= 0) {
+      setShowNoCreditsModal(true);
+      return false;
+    }
+    return true;
+  };
+  
   // Add photo to queue
   const addPhotoToQueue = () => {
     if (!selectedFile) {
       setUploadError('Please select a photo first');
+      return;
+    }
+    
+    // Check if user has credits before proceeding
+    if (!checkCredits()) {
       return;
     }
     
@@ -165,6 +205,11 @@ export default function ClientPage() {
   const processAllPhotos = async () => {
     if (photoQueue.length === 0) {
       setUploadError('Please add at least one photo to the queue');
+      return;
+    }
+    
+    // Check if user has credits before proceeding
+    if (!checkCredits()) {
       return;
     }
     
@@ -238,7 +283,10 @@ export default function ClientPage() {
           // Call OpenAI API to generate a staged image
           console.log('Calling OpenAI API to generate staged image');
           try {
-            const stagedImageUrl = await generateStagedImage(publicUrl, currentPhoto.roomType, currentPhoto.styleNotes, user.id);
+            const result = await generateStagedImage(publicUrl, currentPhoto.roomType, currentPhoto.styleNotes, user.id);
+            
+            // If we got a string back (fallback image), use it directly
+            const stagedImageUrl = typeof result === 'string' ? result : result.imageUrl;
             
             // Update the photo record with the staged image URL
             const { error: updateError } = await supabase
@@ -257,6 +305,15 @@ export default function ClientPage() {
             console.log(`Successfully processed photo ${i+1}/${photoQueue.length}`);
           } catch (aiError) {
             console.error('Error in AI processing:', aiError);
+            
+            // Check if we got a no credits error
+            if (aiError instanceof Error && aiError.message === 'NO_CREDITS_REMAINING') {
+              console.log('User has no credits remaining');
+              setShowNoCreditsModal(true);
+              setProcessingPhoto(false);
+              setShowProcessingNotification(false);
+              return; // Stop processing queue
+            }
             // Update the photo to mark it as failed
             await supabase
               .from('photos')
@@ -357,7 +414,60 @@ export default function ClientPage() {
   }
   
   return (
-    <div className="bg-white dark:bg-[#18181b] rounded-2xl shadow-xl p-8 relative">
+    <div className="min-h-screen bg-gradient-to-b from-[#f8fafc] to-[#e0e7ef] dark:from-[#0a0a0a] dark:to-[#23272f]">
+      <header className="bg-white dark:bg-[#18181b] shadow-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+          <Link href="/dashboard" className="flex items-center">
+            <img 
+              src="/images/3.png" 
+              alt="StageMate Logo" 
+              style={{ height: '40px', width: 'auto' }}
+            />
+          </Link>
+          <div className="flex items-center">
+            <div className="mr-6 flex items-center">
+              <div className="bg-[#f1f5f9] dark:bg-[#27272a] px-4 py-2 rounded-md flex items-center">
+                <span className="text-[#2563eb] dark:text-[#60a5fa] font-medium mr-1">
+                  {creditsLoading ? (
+                    <span className="inline-block w-4 h-4 border-2 border-[#2563eb] border-t-transparent rounded-full animate-spin"></span>
+                  ) : (
+                    userCredits?.credits_remaining || 0
+                  )}
+                </span>
+                <span className="text-[#64748b] dark:text-[#94a3b8] text-sm">
+                  {userCredits?.credits_remaining === 1 ? 'Credit' : 'Credits'} Remaining
+                </span>
+              </div>
+              <Link href="/dashboard/upgrade" className="ml-2 text-sm text-[#2563eb] dark:text-[#60a5fa] hover:underline">
+                Add Credits
+              </Link>
+            </div>
+            <nav className="flex items-center">
+              <Link href="/dashboard" className="text-[#64748b] dark:text-[#cbd5e1] hover:text-[#2563eb] dark:hover:text-[#60a5fa] mx-4">
+                Dashboard
+              </Link>
+              <button 
+                onClick={async () => {
+                  await signOut();
+                  router.push('/');
+                }}
+                className="bg-[#f1f5f9] dark:bg-[#27272a] hover:bg-[#e2e8f0] dark:hover:bg-[#3f3f46] text-[#64748b] dark:text-[#cbd5e1] px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Sign Out
+              </button>
+            </nav>
+          </div>
+        </div>
+      </header>
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white dark:bg-[#18181b] rounded-2xl shadow-xl p-8 relative">
+      {/* No Credits Modal */}
+      <NoCreditsModal 
+        isOpen={showNoCreditsModal} 
+        onClose={() => setShowNoCreditsModal(false)} 
+      />
+      
       {/* Processing Notification */}
       {showProcessingNotification && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
@@ -386,9 +496,6 @@ export default function ClientPage() {
           </div>
         </div>
       )}
-      <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-6">
-        Property Photos
-      </h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Upload Form */}
@@ -448,7 +555,7 @@ export default function ClientPage() {
           <div className="flex flex-col space-y-2">
             <button
               onClick={addPhotoToQueue}
-              disabled={!selectedFile || uploading || isSubmitting}
+              disabled={!selectedFile || uploading || isSubmitting || !userCredits || userCredits.credits_remaining <= 0}
               className="w-full bg-[#2563eb] hover:bg-[#1e40af] text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Add to Queue
@@ -456,7 +563,7 @@ export default function ClientPage() {
             
             <button
               onClick={processAllPhotos}
-              disabled={photoQueue.length === 0 || uploading || isSubmitting}
+              disabled={photoQueue.length === 0 || uploading || isSubmitting || !userCredits || userCredits.credits_remaining <= 0}
               className="w-full bg-[#059669] hover:bg-[#047857] text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Processing...' : `Transform All (${photoQueue.length})`}
@@ -615,5 +722,7 @@ export default function ClientPage() {
         </Link>
       </div>
     </div>
+  </div>
+</div>
   );
 }
