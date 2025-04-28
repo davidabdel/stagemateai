@@ -9,7 +9,7 @@ export default function Home() {
         <div className="container mx-auto px-4 flex items-center justify-between">
           <div className="flex items-center">
             <Link href="#" className="flex items-center">
-              <Image src="/images/3.png" alt="StageMate Logo" width={150} height={40} className="h-10 w-auto" />
+              <img src="/images/3.png" alt="StageMate Logo" className="h-12 w-auto object-contain" />
             </Link>
           </div>
           <nav className="hidden md:flex items-center space-x-8">
