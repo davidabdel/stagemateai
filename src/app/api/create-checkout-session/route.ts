@@ -3,7 +3,13 @@ import Stripe from 'stripe';
 import { supabase } from '@/utils/supabaseClient';
 import { getAuth } from '@clerk/nextjs/server';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+// Make sure we have a Stripe key
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('STRIPE_SECRET_KEY is not defined in environment variables');
+}
+
+// Initialize Stripe with the secret key
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2025-04-30.basil' as any,
 });
 
