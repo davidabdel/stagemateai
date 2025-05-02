@@ -3,6 +3,8 @@ import { supabase } from '@/utils/supabaseClient';
 
 export async function GET(req: NextRequest) {
   try {
+    console.log('Fetching user credits from user_usage table');
+    
     // Get all user credits from the user_usage table
     const { data: userCredits, error } = await supabase
       .from('user_usage')
@@ -16,9 +18,14 @@ export async function GET(req: NextRequest) {
       }, { status: 500 });
     }
     
+    console.log(`Successfully fetched ${userCredits?.length || 0} user credit records`);
+    
+    // If no records were found, return an empty array instead of null
+    const credits = userCredits || [];
+    
     return NextResponse.json({ 
       success: true, 
-      userCredits
+      userCredits: credits
     });
   } catch (error: any) {
     console.error('Error in user-credits API:', error);
