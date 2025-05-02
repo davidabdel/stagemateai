@@ -159,7 +159,7 @@ export default function ClientPage() {
   
   // Check if user has credits
   const checkCredits = () => {
-    if (!userCredits || userCredits.credits_remaining <= 0) {
+    if (!userCredits || (userCredits.photos_limit - userCredits.photos_used) <= 0) {
       setShowNoCreditsModal(true);
       return false;
     }
@@ -174,7 +174,7 @@ export default function ClientPage() {
     }
     
     // Directly check for credits and show modal if needed
-    if (!userCredits || userCredits.credits_remaining <= 0) {
+    if (!userCredits || (userCredits.photos_limit - userCredits.photos_used) <= 0) {
       setShowNoCreditsModal(true);
       return;
     }
@@ -432,11 +432,11 @@ export default function ClientPage() {
                   {creditsLoading ? (
                     <span className="inline-block w-4 h-4 border-2 border-[#2563eb] border-t-transparent rounded-full animate-spin"></span>
                   ) : (
-                    userCredits?.credits_remaining || 0
+                    userCredits ? Math.max(0, userCredits.photos_limit - userCredits.photos_used) : 0
                   )}
                 </span>
                 <span className="text-[#64748b] dark:text-[#94a3b8] text-sm">
-                  {userCredits?.credits_remaining === 1 ? 'Credit' : 'Credits'} Remaining
+                  {userCredits && (userCredits.photos_limit - userCredits.photos_used) === 1 ? 'Credit' : 'Credits'} Remaining
                 </span>
               </div>
               <Link href="/dashboard/upgrade" className="ml-2 text-sm text-[#2563eb] dark:text-[#60a5fa] hover:underline">
@@ -564,7 +564,7 @@ export default function ClientPage() {
             
             <button
               onClick={processAllPhotos}
-              disabled={photoQueue.length === 0 || uploading || isSubmitting || !userCredits || userCredits.credits_remaining <= 0}
+              disabled={photoQueue.length === 0 || uploading || isSubmitting || !userCredits || (userCredits.photos_limit - userCredits.photos_used) <= 0}
               className="w-full bg-[#059669] hover:bg-[#047857] text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Processing...' : `Transform All (${photoQueue.length})`}
