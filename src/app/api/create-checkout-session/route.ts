@@ -4,7 +4,7 @@ import { supabase } from '@/utils/supabaseClient';
 import { getAuth } from '@clerk/nextjs/server';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16' as any,
+  apiVersion: '2025-04-30.basil' as any,
 });
 
 export async function POST(req: NextRequest) {

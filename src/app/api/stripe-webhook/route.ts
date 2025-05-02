@@ -4,7 +4,7 @@ import { supabase } from '@/utils/supabaseClient';
 
 // Initialize Stripe with the secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16' as any,
+  apiVersion: '2025-04-30.basil' as any,
 });
 
 // Webhook secret for verifying the event
