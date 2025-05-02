@@ -20,7 +20,7 @@ const NoCreditsModal: React.FC<NoCreditsModalProps> = ({ isOpen, onClose }) => {
           </div>
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Credits Remaining</h3>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            You've used all your available credits. Add more credits to continue transforming your real estate photos with AI.
+            You have no credit please add more.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 

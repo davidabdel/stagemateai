@@ -173,8 +173,9 @@ export default function ClientPage() {
       return;
     }
     
-    // Check if user has credits before proceeding
-    if (!checkCredits()) {
+    // Directly check for credits and show modal if needed
+    if (!userCredits || userCredits.credits_remaining <= 0) {
+      setShowNoCreditsModal(true);
       return;
     }
     
@@ -555,7 +556,7 @@ export default function ClientPage() {
           <div className="flex flex-col space-y-2">
             <button
               onClick={addPhotoToQueue}
-              disabled={!selectedFile || uploading || isSubmitting || !userCredits || userCredits.credits_remaining <= 0}
+              disabled={!selectedFile || uploading || isSubmitting}
               className="w-full bg-[#2563eb] hover:bg-[#1e40af] text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Add to Queue

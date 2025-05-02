@@ -4,7 +4,8 @@ import { supabase } from './supabaseClient';
 export interface UserCredits {
   id?: string;
   user_id: string;
-  credits_remaining: number;
+  photos_limit: number;
+  photos_used: number;
   plan_type: string;
   updated_at?: string;
 }
@@ -86,19 +87,30 @@ export async function deleteListing(id: string) {
 // Get user credits
 export async function getUserCredits(userId: string) {
   try {
+    console.log('Fetching user credits for userId:', userId);
+    
     const { data, error } = await supabase
       .from('user_usage')
       .select('*')
       .eq('user_id', userId)
       .single();
     
+    console.log('User credits query result:', data, error);
+    
     if (error) {
       // If no record exists, create one with default free credits
       if (error.code === 'PGRST116') {
+        console.log('No user credits found, creating default credits');
         return createUserCredits(userId);
       }
       throw error;
     }
+    
+    // Log the data we're returning
+    console.log('Returning user credits:', data);
+    console.log('Photos limit:', data.photos_limit);
+    console.log('Photos used:', data.photos_used);
+    console.log('Remaining photos:', data.photos_limit - data.photos_used);
     
     return { data, error: null };
   } catch (error) {
@@ -112,7 +124,8 @@ export async function createUserCredits(userId: string) {
   try {
     const newUserCredits = {
       user_id: userId,
-      credits_remaining: 3, // Default free credits
+      photos_limit: 3, // Default free photo limit
+      photos_used: 0, // Initial photos used
       plan_type: 'free'
     };
     
@@ -130,11 +143,11 @@ export async function createUserCredits(userId: string) {
 }
 
 // Update user credits
-export async function updateUserCredits(userId: string, creditsRemaining: number) {
+export async function updateUserCredits(userId: string, photosLimit: number) {
   try {
     const { data, error } = await supabase
       .from('user_usage')
-      .update({ credits_remaining: creditsRemaining, updated_at: new Date().toISOString() })
+      .update({ photos_limit: photosLimit, updated_at: new Date().toISOString() })
       .eq('user_id', userId)
       .select();
     
@@ -146,25 +159,45 @@ export async function updateUserCredits(userId: string, creditsRemaining: number
   }
 }
 
-// Decrement user credits
+// Decrement user credits (increment photos used)
 export async function decrementUserCredits(userId: string) {
   try {
-    // First get current credits
+    // First get current user data
     const { data: currentCredits, error: fetchError } = await getUserCredits(userId);
     
     if (fetchError) throw fetchError;
-    if (!currentCredits) throw new Error('No credits record found');
+    if (!currentCredits) throw new Error('No user record found');
     
-    // Calculate new credits value (don't go below 0)
-    const newCreditsValue = Math.max(0, currentCredits.credits_remaining - 1);
+    // Increment photos_used
+    const newPhotosUsed = (currentCredits.photos_used || 0) + 1;
     
-    // Update with new value
-    const { data, error } = await updateUserCredits(userId, newCreditsValue);
+    // Check if user has remaining photos
+    const remainingPhotos = Math.max(0, currentCredits.photos_limit - newPhotosUsed);
+    const hasRemainingPhotos = remainingPhotos > 0;
+    
+    // Update the photos_used count
+    const { data, error } = await supabase
+      .from('user_usage')
+      .update({ photos_used: newPhotosUsed, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select();
     
     if (error) throw error;
-    return { data, error: null, creditsRemaining: newCreditsValue };
+    
+    // Return the updated data with remaining photos info
+    return { 
+      data, 
+      error: null, 
+      photosRemaining: remainingPhotos,
+      hasRemainingPhotos: hasRemainingPhotos 
+    };
   } catch (error) {
-    console.error('Error decrementing user credits:', error);
-    return { data: null, error, creditsRemaining: 0 };
+    console.error('Error updating photos used:', error);
+    return { 
+      data: null, 
+      error, 
+      photosRemaining: 0,
+      hasRemainingPhotos: false 
+    };
   }
 }

@@ -33,16 +33,15 @@ export default function Home() {
               {/* AI-Powered badge removed */}
               
               <h1 className="text-3xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight max-w-5xl md:w-[120%] mx-auto">
-                <span className="block text-3xl md:text-6xl lg:text-7xl">Instantly Turn Messy Homes</span>
-                <span className="block text-3xl md:text-6xl lg:text-7xl">into Market-Ready Listings</span>
+                <span className="block text-3xl md:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase text-primary">Skip the Photographer. List in Minutes</span>
               </h1>
               
               <p className="text-lg md:text-xl text-gray-600 max-w-2xl">
-                Upload a photo. Watch AI clean, stage, and enhance it — in seconds. No photographers. No staging fees.
+                Use StageMate to instantly clean, enhance, and transform your property photos — no staging, no photographers, no delays.
               </p>
               
               <div className="flex flex-wrap gap-4 justify-center mt-4">
-                <a href="/auth" className="px-6 py-3 bg-[#0052CC] hover:bg-[#0052CC]/80 text-white font-medium rounded-md transition-colors shadow-md">
+                <a href="/auth" className="px-6 py-3 bg-secondary hover:bg-accent text-secondary-foreground font-medium rounded-md transition-colors shadow-md">
                   TRY FOR FREE
                 </a>
               </div>
@@ -52,13 +51,13 @@ export default function Home() {
                 <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12">
                   {/* The "BEFORE" image */}
                   <div className="flex justify-center items-center w-full md:w-2/5">
-                    <div className="relative rounded-xl overflow-hidden shadow-md border border-gray-100" style={{ width: '480px', maxWidth: '100%' }}>
-                      <div className="absolute top-4 left-4 bg-white text-gray-700 text-xs font-bold px-3 py-1 rounded-full z-10 shadow-sm">
+                    <div className="relative overflow-hidden" style={{ width: '480px', maxWidth: '100%' }}>
+                      <div className="absolute top-4 left-4 bg-white text-gray-700 text-xs font-bold px-3 py-1 rounded-full z-10">
                         BEFORE
                       </div>
                       <img 
-                        src="/images/Before_StageMate.jpeg?v=3" 
-                        alt="Before staging - Living room" 
+                        src="/images/StageMate_PhoneShot.png" 
+                        alt="Before staging - Phone photo" 
                         width="480" 
                         height="336"
                         className="w-full h-auto"
@@ -66,24 +65,22 @@ export default function Home() {
                     </div>
                   </div>
                   
-                  {/* Arrow pointing from before to after */}
+                  {/* RightArrowSVG image between before and after */}
                   <div className="flex items-center justify-center py-4 md:py-0">
-                    <div className="hidden md:flex md:items-center md:justify-center w-16 h-16 bg-gradient-to-r from-[#0052CC] to-[#0052CC]/80 rounded-full shadow-md">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
-                    </div>
-                    <div className="flex md:hidden items-center justify-center w-12 h-12 bg-gradient-to-r from-[#0052CC] to-[#0052CC]/80 rounded-full shadow-md">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                      </svg>
-                    </div>
+                    <img 
+                      src="/images/RightArrowSVG.svg?v=2" 
+                      alt="Right Arrow" 
+                      width="100" 
+                      height="100"
+                      className="w-16 md:w-24 h-auto"
+                      style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.2))' }}
+                    />
                   </div>
                   
                   {/* The "AFTER" image */}
                   <div className="flex justify-center items-center w-full md:w-3/5">
-                    <div className="relative rounded-xl overflow-hidden shadow-lg border border-gray-100" style={{ width: '650px', maxWidth: '100%' }}>
-                      <div className="absolute top-4 left-4 bg-[#0052CC] text-white text-xs font-bold px-3 py-1 rounded-full z-10 shadow-sm">
+                    <div className="relative overflow-hidden" style={{ width: '650px', maxWidth: '100%' }}>
+                      <div className="absolute top-4 left-4 bg-[#0052CC] text-white text-xs font-bold px-3 py-1 rounded-full z-10">
                         AFTER
                       </div>
                       <img 

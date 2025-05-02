@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getListings, Listing, deleteListing, getUserCredits, UserCredits } from "@/utils/supabaseService";
 import { checkAuth, signOut } from "@/utils/authUtils";
 import { supabase } from "@/utils/supabaseClient";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function Dashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('listings');
   const [listings, setListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,6 +20,17 @@ export default function Dashboard() {
   const [userCredits, setUserCredits] = useState<UserCredits | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(true);
   
+  // Check for success parameter from Stripe checkout
+  useEffect(() => {
+    const success = searchParams.get('success');
+    if (success === 'true') {
+      toast.success('Payment successful! Your subscription has been activated.', {
+        duration: 5000,
+        position: 'top-center',
+      });
+    }
+  }, [searchParams]);
+
   // Check authentication
   useEffect(() => {
     async function checkAuthentication() {
@@ -36,19 +49,35 @@ export default function Dashboard() {
     // Function to fetch user credits
     async function fetchUserCredits(userId: string) {
       try {
+        console.log('Dashboard: Fetching user credits for userId:', userId);
         setCreditsLoading(true);
         const { data, error } = await getUserCredits(userId);
         
-        if (error) throw error;
+        console.log('Dashboard: User credits result:', data, error);
+        
+        if (error) {
+          console.error('Dashboard: Error fetching user credits:', error);
+          throw error;
+        }
+        
+        if (data) {
+          console.log('Dashboard: Setting user credits:', data);
+          console.log('Dashboard: Photos limit:', data.photos_limit);
+          console.log('Dashboard: Photos used:', data.photos_used);
+          console.log('Dashboard: Remaining photos:', data.photos_limit - data.photos_used);
+        } else {
+          console.log('Dashboard: No user credits data returned');
+        }
         
         setUserCredits(data);
         
-        // If credits are 0, redirect to upgrade page
-        if (data && data.credits_remaining === 0) {
+        // If user has no remaining photos, redirect to upgrade page
+        if (data && (data.photos_limit - data.photos_used <= 0)) {
+          console.log('Dashboard: No remaining photos, redirecting to upgrade page');
           router.push('/dashboard/upgrade');
         }
       } catch (err) {
-        console.error("Error fetching user credits:", err);
+        console.error("Dashboard: Error fetching user credits:", err);
       } finally {
         setCreditsLoading(false);
       }
@@ -110,6 +139,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f8fafc] to-[#e0e7ef] dark:from-[#0a0a0a] dark:to-[#23272f]">
+      <Toaster />
       <header className="bg-white dark:bg-[#18181b] shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <Link href="/dashboard" className="flex items-center">
@@ -150,7 +180,9 @@ export default function Dashboard() {
             </div>
           </div>
           <p className="text-[#475569] dark:text-[#cbd5e1] mb-6">
-            Manage your real estate listings and virtual staging projects. You have {creditsLoading ? '...' : userCredits?.credits_remaining || 0} photo{(userCredits?.credits_remaining === 1) ? '' : 's'} remaining.
+            Manage your real estate listings and virtual staging projects. You have {creditsLoading ? '...' : 
+              userCredits ? Math.max(0, (userCredits.photos_limit - userCredits.photos_used)) : 0
+            } photo{(userCredits && (userCredits.photos_limit - userCredits.photos_used) === 1) ? '' : 's'} remaining.
           </p>
           
           {/* Tab Navigation */}
@@ -274,25 +306,26 @@ export default function Dashboard() {
               <>
                 <div className="flex items-center justify-between">
                   <p className="text-[#64748b] dark:text-[#94a3b8]">
-                    {userCredits?.plan_type === 'free' ? 'Free photos remaining' : 'Credits remaining'}
+                    {userCredits?.plan_type === 'free' ? 'Free photos remaining' : 'Photos remaining'}
                   </p>
                   <span className="text-2xl font-bold text-[#2563eb]">
-                    {userCredits?.credits_remaining || 0}
+                    {userCredits ? Math.max(0, (userCredits.photos_limit - userCredits.photos_used)) : 0}
                   </span>
                 </div>
                 <div className="mt-4 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
                   <div 
                     className="bg-[#2563eb] h-2.5 rounded-full transition-all duration-500" 
                     style={{ 
-                      width: userCredits ? `${Math.min(100, (userCredits.credits_remaining / 3) * 100)}%` : '0%' 
+                      width: userCredits && userCredits.photos_limit > 0 ? 
+                        `${Math.min(100, ((userCredits.photos_limit - userCredits.photos_used) / userCredits.photos_limit) * 100)}%` : '0%' 
                     }}
                   ></div>
                 </div>
                 <div className="mt-4 flex justify-between items-center">
-                  {userCredits?.credits_remaining === 0 ? (
-                    <span className="text-sm text-red-500">No credits remaining</span>
+                  {userCredits && (userCredits.photos_limit - userCredits.photos_used) <= 0 ? (
+                    <span className="text-sm text-red-500">No photos remaining</span>
                   ) : (
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Need more credits?</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Need more photos?</span>
                   )}
                   <Link 
                     href="/dashboard/upgrade" 

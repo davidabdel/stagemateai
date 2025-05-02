@@ -1,5 +1,4 @@
 import { supabase } from './supabaseClient';
-// Removed unused import: import { redirect } from 'next/navigation';
 
 // Check if user is authenticated
 export async function checkAuth() {
@@ -19,6 +18,37 @@ export async function checkAuth() {
   } catch (error) {
     console.error('Auth check error:', error);
     return null;
+  }
+}
+
+// Check if user is an admin
+export async function checkAdminAuth() {
+  try {
+    const user = await checkAuth();
+    
+    if (!user) {
+      return { user: null, isAdmin: false };
+    }
+    
+    // Check if user is the specific admin email (david@uconnect.com.au)
+    if (user.email === 'david@uconnect.com.au') {
+      return { user, isAdmin: true };
+    }
+    
+    // As a fallback, check if user has admin role in the database
+    const { data, error } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    return { 
+      user, 
+      isAdmin: !!data && !error
+    };
+  } catch (error) {
+    console.error("Error checking admin authentication:", error);
+    return { user: null, isAdmin: false };
   }
 }
 

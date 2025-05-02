@@ -11,11 +11,6 @@
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 OPENAI_API_KEY=your_openai_api_key
-
-# Clerk Authentication (Required)
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
-CLERK_WEBHOOK_SECRET=your_clerk_webhook_secret
 ```
 
 3. Deploy your project
@@ -28,12 +23,22 @@ StageMate AI is a powerful SaaS platform designed for real estate agents who wan
 
 ## Features
 
+### User Features
+
 - **AI-Powered Image Transformation**: Transform messy room photos into professionally staged images
 - **High-Quality Downloads**: Download AI-generated images in high resolution for marketing materials
 - **Multiple Room Types**: Support for living rooms, bedrooms, kitchens, bathrooms, and more
 - **Custom Styling**: Add style notes to guide the AI in creating the perfect look
 - **Batch Processing**: Queue multiple photos for efficient processing
 - **Real-Time Feedback**: Clear processing notifications keep you informed
+
+### Admin Features
+
+- **Comprehensive Admin Dashboard**: Monitor platform usage, user growth, and revenue metrics
+- **User Management**: View and manage all users, edit roles and permissions
+- **Analytics Dashboard**: Access detailed usage statistics and performance metrics
+- **Subscription Management**: Create and manage subscription plans, pricing, and features
+- **Content Moderation**: Review and moderate user-generated content
 
 ## Technology Stack
 
