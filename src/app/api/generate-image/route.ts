@@ -137,19 +137,19 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
             console.log('Server: Generated image URL:', generatedImageUrl.substring(0, 50) + '...');
             
             // Decrement user credits after successful image generation
-            const { creditsRemaining, error: decrementError } = await decrementUserCredits(userId);
+            const { photosRemaining, error: decrementError } = await decrementUserCredits(userId);
             
             if (decrementError) {
               console.error('Server: Error decrementing user credits:', decrementError);
               // Continue anyway since the image was generated successfully
             } else {
-              console.log('Server: Credits decremented successfully. Remaining credits:', creditsRemaining);
+              console.log('Server: Credits decremented successfully. Remaining photos:', photosRemaining);
             }
             
             return NextResponse.json({ 
               generatedImageUrl,
               success: true,
-              creditsRemaining
+              photosRemaining
             });
           }
         }
