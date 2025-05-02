@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getListings, Listing, deleteListing, getUserCredits, UserCredits } from "@/utils/supabaseService";
@@ -8,19 +8,10 @@ import { checkAuth, signOut } from "@/utils/authUtils";
 import { supabase } from "@/utils/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
 
-export default function Dashboard() {
-  const router = useRouter();
+// Create a separate component to handle the search params
+function SuccessMessage() {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState('listings');
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  // Store authenticated user information
-  const [_user, setUser] = useState<{ id: string } | null>(null);
-  const [userCredits, setUserCredits] = useState<UserCredits | null>(null);
-  const [creditsLoading, setCreditsLoading] = useState(true);
   
-  // Check for success parameter from Stripe checkout
   useEffect(() => {
     const success = searchParams.get('success');
     if (success === 'true') {
@@ -30,6 +21,20 @@ export default function Dashboard() {
       });
     }
   }, [searchParams]);
+  
+  return null;
+}
+
+export default function Dashboard() {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState('listings');
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  // Store authenticated user information
+  const [_user, setUser] = useState<{ id: string } | null>(null);
+  const [userCredits, setUserCredits] = useState<UserCredits | null>(null);
+  const [creditsLoading, setCreditsLoading] = useState(true);
 
   // Check authentication
   useEffect(() => {
@@ -140,6 +145,9 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f8fafc] to-[#e0e7ef] dark:from-[#0a0a0a] dark:to-[#23272f]">
       <Toaster />
+      <Suspense fallback={null}>
+        <SuccessMessage />
+      </Suspense>
       <header className="bg-white dark:bg-[#18181b] shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <Link href="/dashboard" className="flex items-center">
