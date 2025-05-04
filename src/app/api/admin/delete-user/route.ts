@@ -23,16 +23,47 @@ export async function POST(req: NextRequest) {
     
     console.log(`Attempting to delete user with email: ${email}`);
     
-    // First, find the user in the user_usage table by email
-    // We need to find the user_id that corresponds to this email
-    // Use supabaseAdmin to bypass RLS policies
-    const { data: usageData, error: usageError } = await supabaseAdmin
+    console.log('Attempting to fetch user data from user_usage table...');
+    
+    // Declare a variable to hold our user data
+    let userData = [];
+    
+    // First, try to fetch all users from the user_usage table
+    // We'll use the regular supabase client first, which should work for the current user
+    const { data: usageData, error: usageError } = await supabase
       .from('user_usage')
       .select('*');
-      
+    
     if (usageError) {
-      console.error('Error fetching user data:', usageError);
-      return NextResponse.json({ error: 'Failed to fetch user data' }, { status: 500 });
+      console.error('Error fetching user data with regular client:', usageError);
+      
+      // If that fails, try with the admin client
+      const adminResult = await supabaseAdmin
+        .from('user_usage')
+        .select('*');
+      
+      if (adminResult.error) {
+        console.error('Error fetching user data with admin client:', adminResult.error);
+        return NextResponse.json({ 
+          error: 'Failed to fetch user data', 
+          details: adminResult.error.message 
+        }, { status: 500 });
+      }
+      
+      // If admin client worked, use that data
+      if (adminResult.data) {
+        console.log(`Successfully fetched ${adminResult.data.length} users with admin client`);
+        userData = adminResult.data;
+      }
+    } else {
+      console.log(`Successfully fetched ${usageData.length} users with regular client`);
+      userData = usageData;
+    }
+    
+    // If we still don't have data, return an error
+    if (!userData || userData.length === 0) {
+      console.error('No user data found');
+      return NextResponse.json({ error: 'No user data found' }, { status: 404 });
     }
     
     // Find the user with the matching email
@@ -56,8 +87,10 @@ export async function POST(req: NextRequest) {
     
     // If we couldn't find the user ID in our known mappings,
     // try to find it in the user_usage table
-    if (!userIdToDelete) {
-      for (const user of usageData) {
+    if (!userIdToDelete && userData.length > 0) {
+      for (const user of userData) {
+        if (!user.user_id) continue;
+        
         const shortId = user.user_id.substring(0, 6);
         
         // Check if this user's ID might correspond to the email
