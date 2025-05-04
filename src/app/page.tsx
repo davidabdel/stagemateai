@@ -65,8 +65,8 @@ export default function Home() {
                     </div>
                   </div>
                   
-                  {/* RightArrowSVG image between before and after */}
-                  <div className="flex items-center justify-center py-4 md:py-0">
+                  {/* RightArrowSVG image between before and after - hidden on mobile */}
+                  <div className="hidden md:flex items-center justify-center py-4 md:py-0">
                     <img 
                       src="/images/RightArrowSVG.svg?v=2" 
                       alt="Right Arrow" 
