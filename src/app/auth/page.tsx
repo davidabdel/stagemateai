@@ -52,21 +52,72 @@ export default function AuthPage() {
       setIsLoading(true);
       setError("");
       
-      // Sign up with Supabase
-      const { error } = await supabase.auth.signUp({
+      console.log('Attempting to sign up with email:', email);
+      
+      // Sign up with Supabase with more detailed response
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          // Set email redirect to the current domain
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        }
       });
 
+      // Log the full response for debugging
+      console.log('Supabase sign-up response:', { data, error });
+
       if (error) {
+        console.error('Supabase error details:', error);
+        
+        // Handle rate limiting errors specifically
+        if (error.status === 429 || error.code === 'over_email_send_rate_limit') {
+          setError("You've reached the limit for email sending. Please wait a while before trying again, or contact support if you need immediate assistance.");
+          return;
+        }
+        
         throw error;
       }
-
-      // Show confirmation message
-      alert("Check your email for the confirmation link!");
+      
+      // Check if email confirmation was sent
+      if (data && data.user && data.user.identities && data.user.identities.length === 0) {
+        // This usually means the user already exists
+        setError("An account with this email already exists. Please sign in instead.");
+        return;
+      }
+      
+      if (data && data.user) {
+        console.log('User created successfully:', data.user);
+        
+        // Check if email confirmation is needed
+        if (data.session) {
+          // User was signed in automatically (email confirmation might be disabled)
+          console.log('User was signed in automatically');
+          window.location.href = "/dashboard";
+          return;
+        }
+        
+        // Show confirmation message
+        alert("Check your email for the confirmation link! If you don't see it, please check your spam folder.");
+      } else {
+        console.warn('User was not created properly:', data);
+        setError("Account creation was not completed. Please try again or contact support.");
+      }
     } catch (err: unknown) {
       console.error("Signup error:", err);
-      setError(err instanceof Error ? err.message : "Failed to sign up. Please try again.");
+      
+      // Provide more specific error messages
+      if (err instanceof Error) {
+        if (err.message.includes('email')) {
+          setError("There was an issue with the email address. Please check if it's valid.");
+        } else if (err.message.includes('password')) {
+          setError("Password issue: Ensure it's at least 6 characters long and meets security requirements.");
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError("Failed to sign up. Please try again or contact support.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +188,14 @@ export default function AuthPage() {
             disabled={isLoading}
             required
           />
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && (
+            <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-red-600 font-medium">{error}</p>
+              <p className="text-red-500 text-sm mt-1">
+                If you're having trouble, please try again or contact support at <a href="mailto:support@stagemateai.com" className="underline">support@stagemateai.com</a>
+              </p>
+            </div>
+          )}
           <button
             type="submit"
             className="rounded-md bg-[#2563eb] hover:bg-[#1e40af] text-white font-semibold py-3 transition-colors flex justify-center items-center"
