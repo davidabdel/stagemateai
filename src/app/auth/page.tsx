@@ -77,11 +77,25 @@ export default function AuthPage() {
       setIsLoading(true);
       setError("");
       
+      // Get the current domain for redirection
+      const currentDomain = window.location.origin;
+      console.log('Current domain for redirect:', currentDomain);
+      
+      // Ensure we're using the full domain for the redirect
+      const redirectUrl = `${currentDomain}/dashboard`;
+      console.log('Redirect URL:', redirectUrl);
+      
       // Sign in with Google via Supabase
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: redirectUrl,
+          // Explicitly set the site URL to match the current domain
+          // This helps ensure the redirect goes back to the right place
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
 
@@ -90,6 +104,7 @@ export default function AuthPage() {
       }
       
       // The redirect is handled by Supabase OAuth flow
+      // If you're still getting redirected to localhost, check your Supabase Site URL setting
     } catch (err: unknown) {
       console.error("Google sign-in error:", err);
       setError(err instanceof Error ? err.message : "Failed to sign in with Google. Please try again.");
