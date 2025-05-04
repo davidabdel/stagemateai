@@ -38,6 +38,9 @@ export default function AdminDashboard() {
     totalCreditsUsed: 0,
     monthlyRevenue: 0,
   });
+  const [emailToDelete, setEmailToDelete] = useState('');
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -244,6 +247,44 @@ export default function AdminDashboard() {
       setIsFixingPlans(false);
     }
   };
+  
+  // Handle deleting a user by email
+  const handleDeleteUser = async () => {
+    if (!emailToDelete) {
+      setDeleteError('Please enter an email address');
+      return;
+    }
+    
+    try {
+      setIsDeletingUser(true);
+      setDeleteError('');
+      
+      // Call our API endpoint to delete the user
+      const response = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: emailToDelete }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete user');
+      }
+      
+      toast.success(`Successfully deleted user with email ${emailToDelete}`);
+      setEmailToDelete(''); // Clear the input field
+      fetchData(); // Refresh data
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      setDeleteError(error.message);
+      toast.error(`Failed to delete user: ${error.message}`);
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -405,6 +446,64 @@ export default function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+          
+          {/* Delete User Section */}
+          <div className="mb-8 p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-4">Delete User</h3>
+            <p className="text-[#64748b] dark:text-[#94a3b8] mb-4">
+              Delete a user by their email address. This will remove their data from the application database.
+              <span className="block mt-2 text-amber-600 dark:text-amber-400">
+                Note: This action cannot be undone. The user will need to sign up again if they want to use the application.
+              </span>
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <div className="md:col-span-3">
+                <input
+                  type="email"
+                  placeholder="Enter user email to delete"
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  value={emailToDelete}
+                  onChange={(e) => setEmailToDelete(e.target.value)}
+                  disabled={isDeletingUser}
+                />
+              </div>
+              <div>
+                <button
+                  onClick={handleDeleteUser}
+                  disabled={!emailToDelete || isDeletingUser}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDeletingUser ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete User"
+                  )}
+                </button>
+              </div>
+            </div>
+            
+            {deleteError && (
+              <div className="p-3 bg-red-100 border border-red-200 text-red-800 rounded-md mb-4">
+                {deleteError}
+              </div>
+            )}
+            
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md">
+              <p className="font-medium">Important:</p>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>This will delete the user's data from the application database.</li>
+                <li>The user may still exist in Supabase Auth. For complete removal, you may need to delete them from the Supabase Auth dashboard.</li>
+                <li>All user data including credits, usage history, and preferences will be permanently deleted.</li>
+              </ul>
             </div>
           </div>
         </div>
