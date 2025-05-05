@@ -41,6 +41,7 @@ export default function AdminDashboard() {
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [isUpdatingEmails, setIsUpdatingEmails] = useState(false);
+  const [isFixingAllUsers, setIsFixingAllUsers] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -173,6 +174,39 @@ export default function AdminDashboard() {
     }
   }
 
+  // Function to directly fix all users in the database
+  const fixAllUsers = async () => {
+    try {
+      setIsFixingAllUsers(true);
+      toast.loading('Fixing all users in database...');
+      
+      const response = await fetch('/api/admin/fix-users', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error fixing users: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      toast.dismiss();
+      toast.success(`Fixed ${result.results.updated} of ${result.results.total} users`);
+      
+      // Refresh the data to show the updated users
+      fetchData();
+    } catch (error) {
+      console.error('Error fixing users:', error);
+      toast.dismiss();
+      toast.error('Failed to fix users');
+    } finally {
+      setIsFixingAllUsers(false);
+    }
+  };
+  
   // Function to update user emails in the database
   const updateUserEmails = async () => {
     try {
@@ -544,6 +578,14 @@ export default function AdminDashboard() {
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isUpdatingEmails ? 'Updating Emails...' : 'Update User Emails in Database'}
+                  </button>
+                  
+                  <button
+                    onClick={fixAllUsers}
+                    disabled={isFixingAllUsers}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isFixingAllUsers ? 'Fixing Users...' : 'Fix All Users (Direct)'}
                   </button>
                 </div>
               </div>
