@@ -1,0 +1,556 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { supabase } from "@/utils/supabaseClient";
+import toast, { Toaster } from "react-hot-toast";
+
+type UserCredit = {
+  id: string;
+  user_id: string;
+  email?: string;
+  photos_used: number;
+  photos_limit: number;
+  plan_type: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type Stats = {
+  totalUsers: number;
+  activeSubscriptions: number;
+  totalCreditsUsed: number;
+  monthlyRevenue: number;
+};
+
+export default function AdminDashboard() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [userCredits, setUserCredits] = useState<UserCredit[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [creditsToAdd, setCreditsToAdd] = useState(50);
+  const [planType, setPlanType] = useState('standard');
+  const [isAddingCredits, setIsAddingCredits] = useState(false);
+  const [isFixingPlans, setIsFixingPlans] = useState(false);
+  const [stats, setStats] = useState<Stats>({
+    totalUsers: 0,
+    activeSubscriptions: 0,
+    totalCreditsUsed: 0,
+    monthlyRevenue: 0,
+  });
+  const [emailToDelete, setEmailToDelete] = useState('');
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [isUpdatingEmails, setIsUpdatingEmails] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  async function fetchData() {
+    try {
+      setIsLoading(true);
+      console.log('Fetching user data from Supabase and Clerk...');
+      
+      // Fetch user credits directly from Supabase
+      const { data: usageData, error: usageError } = await supabase
+        .from('user_usage')
+        .select('*');
+      
+      if (usageError) {
+        console.error('Error fetching usage data:', usageError);
+        toast.error('Failed to load usage data');
+        return;
+      }
+      
+      console.log('Successfully fetched usage data:', usageData);
+      
+      // Fetch real user data from our API endpoint that connects to Clerk
+      let emailData: Record<string, string> = {};
+      try {
+        console.log('Attempting to fetch user emails from API...');
+        // Use absolute URL to avoid path resolution issues
+        const emailResponse = await fetch('/api/admin/user-emails', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+          }
+        });
+        
+        console.log('Email response status:', emailResponse.status);
+        
+        if (!emailResponse.ok) {
+          throw new Error(`Error fetching emails: ${emailResponse.status} ${emailResponse.statusText}`);
+        }
+        
+        const emailsJson = await emailResponse.json();
+        console.log('Email API response:', emailsJson);
+        
+        if (emailsJson.users && Array.isArray(emailsJson.users)) {
+          // Create a map of user IDs to emails
+          emailsJson.users.forEach((user: {id: string, email: string}) => {
+            if (user.id && user.email) {
+              emailData[user.id] = user.email;
+            }
+          });
+          console.log('Successfully created email mapping:', emailData);
+        } else {
+          console.warn('Email API response did not contain expected users array:', emailsJson);
+        }
+      } catch (emailError) {
+        console.error('Error fetching email data:', emailError);
+        // Continue with placeholder emails if we can't get real ones
+      }
+      
+      // Use emails directly from Supabase if available, otherwise populate them
+      const usersWithEmails = usageData?.map(user => {
+        const userId = user.user_id;
+        const shortId = userId.substring(0, 6);
+        
+        // If email is already in the database, use it
+        if (user.email) {
+          return user;
+        }
+        
+        // Otherwise, use the same logic as before to populate it
+        // Hardcoded email mappings for known users
+        const knownEmails: Record<string, string> = {
+          '8b5fe1': 'david@uconnect.com.au',  // Admin user
+          'e745a6': 'davidnvr28@gmail.com',   // Regular user
+        };
+        
+        // Use known email if available, then try API data, then fallback to placeholder
+        let email = knownEmails[shortId] || emailData[userId];
+        
+        // If still no email, use a consistent domain based on user ID
+        if (!email) {
+          // Use consistent domain based on user ID to avoid random changes on refresh
+          const domain = shortId === '8b5fe1' ? 'uconnect.com.au' : 'stagemateai.com';
+          email = `${shortId}@${domain}`;
+        }
+        
+        // Override specific emails for demo purposes if needed
+        if (shortId === '8b5fe1') {
+          email = 'david@uconnect.com.au';
+        } else if (shortId === 'e745a6') {
+          email = 'davidnvr28@gmail.com';
+        }
+        
+        return {
+          ...user,
+          email: email
+        };
+      }) || [];
+      
+      console.log('Fetched user data with emails:', usersWithEmails);
+      setUserCredits(usersWithEmails);
+      
+      // Calculate stats
+      const standardSubscriptions = usersWithEmails.filter(user => 
+        user.plan_type === 'standard').length || 0;
+      const agencySubscriptions = usersWithEmails.filter(user => 
+        user.plan_type === 'agency').length || 0;
+      
+      // Calculate monthly revenue (standard plan: $19/month, agency plan: $49/month)
+      const standardRevenue = standardSubscriptions * 19;
+      const agencyRevenue = agencySubscriptions * 49;
+      const totalMonthlyRevenue = standardRevenue + agencyRevenue;
+      
+      const stats = {
+        totalUsers: usersWithEmails.length || 0,
+        activeSubscriptions: standardSubscriptions + agencySubscriptions,
+        totalCreditsUsed: usersWithEmails.reduce((acc, user) => acc + (user.photos_used || 0), 0) || 0,
+        monthlyRevenue: totalMonthlyRevenue
+      };
+      
+      console.log('Calculated stats:', stats);
+      setStats(stats);
+    } catch (error) {
+      console.error('Error in fetchData:', error);
+      toast.error('Failed to load data');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // Function to update user emails in the database
+  const updateUserEmails = async () => {
+    try {
+      setIsUpdatingEmails(true);
+      toast.loading('Updating user emails in database...');
+      
+      const response = await fetch('/api/admin/update-user-emails', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error updating emails: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      toast.dismiss();
+      toast.success('User emails updated successfully');
+      
+      // Refresh the data to show the updated emails
+      fetchData();
+    } catch (error) {
+      console.error('Error updating user emails:', error);
+      toast.dismiss();
+      toast.error('Failed to update user emails');
+    } finally {
+      setIsUpdatingEmails(false);
+    }
+  };
+
+  // Handle adding credits to a user
+  const handleAddCredits = async () => {
+    if (!selectedUserId) {
+      toast.error('Please select a user');
+      return;
+    }
+    
+    if (isNaN(creditsToAdd) || creditsToAdd <= 0) {
+      toast.error('Please enter a valid number of credits');
+      return;
+    }
+    
+    try {
+      setIsAddingCredits(true);
+      
+      // Get current user data
+      const { data: userData, error: fetchError } = await supabase
+        .from('user_usage')
+        .select('*')
+        .eq('user_id', selectedUserId)
+        .single();
+      
+      if (fetchError) {
+        throw fetchError;
+      }
+      
+      // Calculate new limit
+      const currentLimit = userData?.photos_limit || 0;
+      const newLimit = currentLimit + creditsToAdd;
+      
+      // Update plan type if needed
+      const newPlanType = planType;
+      
+      // Update user credits
+      const { error: updateError } = await supabase
+        .from('user_usage')
+        .update({ 
+          photos_limit: newLimit,
+          plan_type: newPlanType,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', selectedUserId);
+      
+      if (updateError) {
+        throw updateError;
+      }
+      
+      toast.success(`Added ${creditsToAdd} credits to user`);
+      fetchData();
+    } catch (error) {
+      console.error('Error adding credits:', error);
+      toast.error('Failed to add credits');
+    } finally {
+      setIsAddingCredits(false);
+    }
+  };
+
+  // Handle fixing plans
+  const handleFixPlans = async () => {
+    try {
+      setIsFixingPlans(true);
+      
+      // Get all users
+      const { data: users, error: fetchError } = await supabase
+        .from('user_usage')
+        .select('*');
+      
+      if (fetchError) {
+        throw fetchError;
+      }
+      
+      // Update each user
+      for (const user of users || []) {
+        // Set plan type based on photos_limit
+        let planType = 'trial';
+        if (user.photos_limit >= 500) {
+          planType = 'agency';
+        } else if (user.photos_limit >= 50) {
+          planType = 'standard';
+        }
+        
+        // Update user
+        const { error: updateError } = await supabase
+          .from('user_usage')
+          .update({ 
+            plan_type: planType,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+        
+        if (updateError) {
+          console.error(`Error updating user ${user.id}:`, updateError);
+        }
+      }
+      
+      toast.success('Fixed plans for all users');
+      fetchData();
+    } catch (error) {
+      console.error('Error fixing plans:', error);
+      toast.error('Failed to fix plans');
+    } finally {
+      setIsFixingPlans(false);
+    }
+  };
+
+  // Handle deleting a user
+  const handleDeleteUser = async () => {
+    if (!emailToDelete) {
+      setDeleteError('Please enter an email address');
+      return;
+    }
+    
+    try {
+      setIsDeletingUser(true);
+      setDeleteError('');
+      
+      // Find user by email
+      const { data: users, error: fetchError } = await supabase
+        .from('user_usage')
+        .select('*')
+        .eq('email', emailToDelete);
+      
+      if (fetchError) {
+        throw fetchError;
+      }
+      
+      if (!users || users.length === 0) {
+        setDeleteError('User not found');
+        return;
+      }
+      
+      // Delete user
+      const { error: deleteError } = await supabase
+        .from('user_usage')
+        .delete()
+        .eq('email', emailToDelete);
+      
+      if (deleteError) {
+        throw deleteError;
+      }
+      
+      toast.success(`Deleted user ${emailToDelete}`);
+      setEmailToDelete('');
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      setDeleteError('Failed to delete user');
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Toaster position="top-right" />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <header className="mb-8">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold text-[#1d2939] dark:text-white">Admin Dashboard</h1>
+            <Link href="/" className="text-[#2563eb] hover:underline">Back to Home</Link>
+          </div>
+        </header>
+        
+        <main>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#2563eb]"></div>
+            </div>
+          ) : (
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-medium text-gray-500 dark:text-gray-400">Total Users</h3>
+                  <p className="text-3xl font-bold text-[#1d2939] dark:text-white">{stats.totalUsers}</p>
+                </div>
+                
+                <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-medium text-gray-500 dark:text-gray-400">Active Subscriptions</h3>
+                  <p className="text-3xl font-bold text-[#1d2939] dark:text-white">{stats.activeSubscriptions}</p>
+                </div>
+                
+                <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-medium text-gray-500 dark:text-gray-400">Total Credits Used</h3>
+                  <p className="text-3xl font-bold text-[#1d2939] dark:text-white">{stats.totalCreditsUsed}</p>
+                </div>
+                
+                <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-medium text-gray-500 dark:text-gray-400">Monthly Revenue</h3>
+                  <p className="text-3xl font-bold text-[#1d2939] dark:text-white">${stats.monthlyRevenue}</p>
+                </div>
+              </div>
+              
+              {/* Add Credits Form */}
+              <div className="mb-8 p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-4">Add Credits</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select User</label>
+                    <select 
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                    >
+                      <option value="">Select a user</option>
+                      {userCredits.map((user) => (
+                        <option key={user.id} value={user.user_id}>
+                          {user.email} - {user.plan_type} - {Math.max(0, (user.photos_limit || 0) - (user.photos_used || 0))} credits
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Credits to Add</label>
+                    <input 
+                      type="number" 
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      value={creditsToAdd}
+                      onChange={(e) => setCreditsToAdd(parseInt(e.target.value) || 0)}
+                      min="1"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Plan Type</label>
+                  <select 
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    value={planType}
+                    onChange={(e) => setPlanType(e.target.value)}
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="agency">Agency</option>
+                  </select>
+                </div>
+                
+                <button
+                  onClick={handleAddCredits}
+                  disabled={!selectedUserId || creditsToAdd <= 0 || isAddingCredits}
+                  className="bg-[#2563eb] hover:bg-[#1e40af] text-white px-6 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isAddingCredits ? 'Adding Credits...' : 'Add Credits'}
+                </button>
+              </div>
+              
+              {/* User Credits Table */}
+              <div className="mb-8 p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-4">User Credits</h3>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Email</th>
+                        <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Photos Used</th>
+                        <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Photos Limit</th>
+                        <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Credits Remaining</th>
+                        <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Plan Type</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userCredits.map((credit) => (
+                        <tr key={credit.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.email}</td>
+                          <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.photos_used || 0}</td>
+                          <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.photos_limit || 0}</td>
+                          <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">
+                            {Math.max(0, (credit.photos_limit || 0) - (credit.photos_used || 0))}
+                          </td>
+                          <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.plan_type || 'Trial'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              {/* Delete User Section */}
+              <div className="mb-8 p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-4">Delete User</h3>
+                <p className="text-[#64748b] dark:text-[#94a3b8] mb-4">
+                  Delete a user by their email address. This will remove their data from the application database.
+                  <span className="block mt-2 text-amber-600 dark:text-amber-400">
+                    Note: This action cannot be undone. The user will need to sign up again if they want to use the application.
+                  </span>
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <div className="md:col-span-3">
+                    <input
+                      type="email"
+                      placeholder="Enter user email to delete"
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      value={emailToDelete}
+                      onChange={(e) => setEmailToDelete(e.target.value)}
+                      disabled={isDeletingUser}
+                    />
+                  </div>
+                  <div>
+                    <button
+                      onClick={handleDeleteUser}
+                      disabled={!emailToDelete || isDeletingUser}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isDeletingUser ? 'Deleting...' : 'Delete User'}
+                    </button>
+                  </div>
+                </div>
+                
+                {deleteError && (
+                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                    {deleteError}
+                  </div>
+                )}
+              </div>
+              
+              {/* Admin Actions */}
+              <div className="mb-8 p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-4">Admin Actions</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    onClick={handleFixPlans}
+                    disabled={isFixingPlans}
+                    className="bg-[#2563eb] hover:bg-[#1e40af] text-white px-6 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isFixingPlans ? 'Fixing Plans...' : 'Fix Plans for All Users'}
+                  </button>
+                  
+                  <button
+                    onClick={updateUserEmails}
+                    disabled={isUpdatingEmails}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUpdatingEmails ? 'Updating Emails...' : 'Update User Emails in Database'}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}

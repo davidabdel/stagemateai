@@ -41,6 +41,7 @@ export default function AdminDashboard() {
   const [emailToDelete, setEmailToDelete] = useState('');
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [isUpdatingEmails, setIsUpdatingEmails] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -102,11 +103,17 @@ export default function AdminDashboard() {
         // Continue with placeholder emails if we can't get real ones
       }
       
-      // Combine the data
+      // Use emails directly from Supabase if available, otherwise populate them
       const usersWithEmails = usageData?.map(user => {
         const userId = user.user_id;
         const shortId = userId.substring(0, 6);
         
+        // If email is already in the database, use it
+        if (user.email) {
+          return user;
+        }
+        
+        // Otherwise, use the same logic as before to populate it
         // Hardcoded email mappings for known users
         const knownEmails: Record<string, string> = {
           '8b5fe1': 'david@uconnect.com.au',  // Admin user
@@ -167,6 +174,39 @@ export default function AdminDashboard() {
     }
   }
 
+  // Function to update user emails in the database
+  const updateUserEmails = async () => {
+    try {
+      setIsUpdatingEmails(true);
+      toast.loading('Updating user emails in database...');
+      
+      const response = await fetch('/api/admin/update-user-emails', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error updating emails: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      toast.dismiss();
+      toast.success('User emails updated successfully');
+      
+      // Refresh the data to show the updated emails
+      fetchData();
+    } catch (error) {
+      console.error('Error updating user emails:', error);
+      toast.dismiss();
+      toast.error('Failed to update user emails');
+    } finally {
+      setIsUpdatingEmails(false);
+    }
+  };
+  
   // Handle adding credits to a user
   const handleAddCredits = async () => {
     if (!selectedUserId) {
@@ -419,19 +459,6 @@ export default function AdminDashboard() {
           
           {/* User Credits Table */}
           <div className="mb-8 p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
-            <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-4">User Credits</h3>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Email</th>
-                    <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Photos Used</th>
-                    <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Photos Limit</th>
-                    <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Credits Remaining</th>
-                    <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Plan Type</th>
-                  </tr>
-                </thead>
                 <tbody>
                   {userCredits.map((credit) => (
                     <tr key={credit.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
