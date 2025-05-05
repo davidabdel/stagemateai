@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import Logo from "../components/Logo";
+import BeforeAfterSlider from "../components/BeforeAfterSlider";
 
 export default function Home() {
   return (
@@ -20,7 +23,7 @@ export default function Home() {
           {/* Navigation links removed */}
           <div className="flex items-center space-x-4">
             <Link href="/auth" className="text-gray-700 hover:text-[#0052CC] font-medium">Log In</Link>
-            <Link href="/auth" className="bg-[#0052CC] hover:bg-[#0052CC]/80 text-white px-4 py-2 rounded-md font-medium transition-colors">Try Free</Link>
+            <Link href="/try" className="bg-[#0052CC] hover:bg-[#0052CC]/80 text-white px-4 py-2 rounded-md font-medium transition-colors">Try Free</Link>
           </div>
         </div>
       </header>
@@ -28,72 +31,54 @@ export default function Home() {
       <main className="flex flex-col">
         {/* Hero Section */}
         <section className="w-full pt-8 pb-8 md:pt-12 md:pb-12 px-4 overflow-hidden">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col items-center text-center gap-8">
-              {/* AI-Powered badge removed */}
-              
-              <h1 className="text-3xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight max-w-5xl md:w-[120%] mx-auto">
-                <span className="block text-3xl md:text-6xl lg:text-7xl font-extrabold tracking-tight uppercase text-primary">Skip the Photographer. List in Minutes</span>
-              </h1>
-              
-              <p className="text-lg md:text-xl text-gray-600 max-w-2xl">
-                Use StageMate to instantly clean, enhance, and transform your property photos — no staging, no photographers, no delays.
-              </p>
-              
-              <div className="flex flex-wrap gap-4 justify-center mt-4">
-                <a href="/auth" className="px-6 py-3 bg-secondary hover:bg-accent text-secondary-foreground font-medium rounded-md transition-colors shadow-md">
-                  TRY FOR FREE
-                </a>
+          <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 md:gap-12">
+              {/* Left side - Header content */}
+              <div className="flex flex-col items-start text-left md:w-[45%] gap-6">
+                <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
+                  <span className="block font-extrabold tracking-tight uppercase text-primary">Skip the Photographer.</span>
+                  <span className="block font-extrabold tracking-tight uppercase text-primary">List in Minutes</span>
+                </h1>
+                
+                <p className="text-lg md:text-xl text-gray-600">
+                  Use StageMate to instantly clean, enhance, and transform your property photos — no staging, no photographers, no delays.
+                </p>
+                
+                <div className="flex flex-wrap gap-4 mt-2">
+                  <a href="/try" className="px-6 py-3 bg-[#0052CC] hover:bg-[#0052CC]/80 text-white font-medium rounded-md transition-colors shadow-md">
+                    START FREE TRIAL
+                  </a>
+                </div>
+                
+                <div className="flex items-center gap-4 mt-4">
+                  <div className="flex">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="w-6 h-6 -ml-1 first:ml-0 rounded-full bg-[#6ecfc9] flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-600">Trusted By Agents Worldwide</span>
+                </div>
               </div>
               
-              {/* Before/After Showcase */}
-              <div className="w-full mt-12">
-                <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12">
-                  {/* The "BEFORE" image */}
-                  <div className="flex justify-center items-center w-full md:w-2/5">
-                    <div className="relative overflow-hidden" style={{ width: '480px', maxWidth: '100%' }}>
-                      <div className="absolute top-4 left-4 bg-white text-gray-700 text-xs font-bold px-3 py-1 rounded-full z-10">
-                        BEFORE
-                      </div>
-                      <img 
-                        src="/images/StageMate_PhoneShot.png" 
-                        alt="Before staging - Phone photo" 
-                        width="480" 
-                        height="336"
-                        className="w-full h-auto"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* RightArrowSVG image between before and after - hidden on mobile */}
-                  <div className="hidden md:flex items-center justify-center py-4 md:py-0">
-                    <img 
-                      src="/images/RightArrowSVG.svg?v=2" 
-                      alt="Right Arrow" 
-                      width="100" 
-                      height="100"
-                      className="w-16 md:w-24 h-auto"
-                      style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.2))' }}
-                    />
-                  </div>
-                  
-                  {/* The "AFTER" image */}
-                  <div className="flex justify-center items-center w-full md:w-3/5">
-                    <div className="relative overflow-hidden" style={{ width: '650px', maxWidth: '100%' }}>
-                      <div className="absolute top-4 left-4 bg-[#0052CC] text-white text-xs font-bold px-3 py-1 rounded-full z-10">
-                        AFTER
-                      </div>
-                      <img 
-                        src="/images/After_StageMate.jpeg?v=6" 
-                        alt="After AI staging - Living room" 
-                        width="650" 
-                        height="455"
-                        className="w-full h-auto"
-                        style={{ transform: 'scale(1.08)', transformOrigin: 'center center' }}
-                      />
-                    </div>
-                  </div>
+              {/* Right side - Before/After Interactive Slider */}
+              <div className="md:w-[55%]">
+                <div className="relative">
+                  <BeforeAfterSlider 
+                    beforeImage="/images/After_StageMate.jpeg"
+                    afterImage="/images/Before_StageMate.jpeg"
+                    beforeAlt="After AI staging - Living room"
+                    afterAlt="Before staging - Living room"
+                    height={500}
+                    width={800}
+                  />
                 </div>
+                <p className="text-center text-gray-500 mt-3 text-sm">
+                  Drag the slider to see the transformation
+                </p>
               </div>
             </div>
           </div>

@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   title: "StageMate AI | Virtual Staging for Real Estate",
   description: "Instantly transform property photos with AI-powered virtual staging. Save time and money with StageMate AI.",
   icons: {
-    icon: "/images/icons8-country-house-64.png",
-    apple: "/images/icons8-country-house-64.png",
+    icon: "/images/AIStars.png",
+    apple: "/images/AIStars.png",
   },
 };
 
