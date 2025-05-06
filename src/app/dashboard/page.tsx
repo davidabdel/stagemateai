@@ -58,9 +58,29 @@ export default function Dashboard() {
       
       setUser(userWithEmail);
       
+      // Ensure user records exist in the database
+      ensureUserRecordsExist(user.id, userData?.user?.email || '');
+      
       // Check if subscription has expired and fetch user credits once authenticated
       checkSubscriptionStatus(user.id);
       fetchUserCredits(user.id);
+    }
+    
+    // Function to ensure user records exist in the database
+    async function ensureUserRecordsExist(userId: string, email: string) {
+      try {
+        console.log('Dashboard: Ensuring user records exist for userId:', userId);
+        
+        // Import the user creation service
+        const { createNewUserRecords } = await import('@/utils/userCreationService');
+        
+        // Create user records if they don't exist
+        const result = await createNewUserRecords(userId, email);
+        console.log('Dashboard: User records check result:', result);
+      } catch (error) {
+        console.error('Dashboard: Error ensuring user records exist:', error);
+        // Continue even if there's an error - this is just a safety measure
+      }
     }
     
     // Function to check if a canceled subscription has expired

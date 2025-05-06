@@ -90,6 +90,25 @@ export default function AuthPage() {
       if (data && data.user) {
         console.log('User created successfully:', data.user);
         
+        // Create necessary database records for the new user
+        try {
+          // Import dynamically to avoid server-side issues
+          const { createNewUserRecords } = await import('@/utils/userCreationService');
+          
+          // Create user records in database
+          const result = await createNewUserRecords(data.user.id, email);
+          console.log('User database records creation result:', result);
+          
+          if (!result.success) {
+            console.error('Warning: Failed to create user database records:', result.error);
+            // Continue with sign-up process even if database record creation fails
+            // The records will be created when the user first accesses the dashboard
+          }
+        } catch (dbError) {
+          console.error('Error creating user database records:', dbError);
+          // Continue with sign-up process even if there's an error
+        }
+        
         // Check if email confirmation is needed
         if (data.session) {
           // User was signed in automatically (email confirmation might be disabled)
