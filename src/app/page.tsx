@@ -325,7 +325,7 @@ export default function Home() {
             <div className="flex space-x-6">
               <Link href="#" className="text-gray-600 hover:text-[#0052CC]">Terms</Link>
               <Link href="#" className="text-gray-600 hover:text-[#0052CC]">Privacy</Link>
-              <Link href="#" className="text-gray-600 hover:text-[#0052CC]">Contact</Link>
+              <Link href="/support" className="text-gray-600 hover:text-[#0052CC]">Support</Link>
             </div>
           </div>
           <div className="mt-6 text-center text-gray-500 text-sm">

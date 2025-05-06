@@ -294,7 +294,7 @@ export default function Dashboard() {
                     </button>
                     
                     <Link 
-                      href="#"
+                      href="/support"
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                     >
                       Help Center
@@ -495,9 +495,9 @@ export default function Dashboard() {
           <div className="bg-white dark:bg-[#18181b] rounded-xl shadow-lg p-6">
             <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-2">Need Help?</h3>
             <p className="text-[#64748b] dark:text-[#94a3b8] mb-4">Our support team is ready to assist you.</p>
-            <button className="w-full rounded-md border border-[#2563eb] text-[#2563eb] hover:bg-[#2563eb] hover:text-white font-medium px-4 py-2 transition-colors">
+            <Link href="/support" className="block w-full rounded-md border border-[#2563eb] text-[#2563eb] hover:bg-[#2563eb] hover:text-white font-medium px-4 py-2 transition-colors text-center">
               Contact Support
-            </button>
+            </Link>
           </div>
         </div>
       </main>
