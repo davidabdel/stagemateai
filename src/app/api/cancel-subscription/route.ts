@@ -46,13 +46,16 @@ export async function POST(request: Request) {
       // First try to find the customer by metadata.user_id
       const customers = await stripe.customers.list({
         limit: 1,
-        expand: ['data.subscriptions'],
-        // @ts-ignore - Stripe types don't include this but it works
-        query: `metadata['user_id']:'${userId}'`,
+        expand: ['data.subscriptions']
       });
       
-      if (customers.data.length > 0) {
-        stripeCustomerId = customers.data[0].id;
+      // Filter customers with the matching user_id in metadata
+      const matchingCustomers = customers.data.filter(customer => 
+        customer.metadata && customer.metadata.user_id === userId
+      );
+      
+      if (matchingCustomers.length > 0) {
+        stripeCustomerId = matchingCustomers[0].id;
         
         // Get the customer's active subscriptions
         const subscriptions = await stripe.subscriptions.list({
