@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/utils/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
+import DeleteAuthUser from "@/components/admin/DeleteAuthUser";
 
 export default function SimpleAdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
@@ -325,6 +326,19 @@ export default function SimpleAdminDashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+          
+          {/* Delete Auth User Section */}
+          <div className="mb-8 p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-4">Delete User from Supabase Auth</h3>
+            <p className="text-[#64748b] dark:text-[#94a3b8] mb-4">
+              Delete a user from Supabase Auth by their User ID or email address. This will completely remove the user's authentication record.
+              <span className="block mt-2 text-amber-600 dark:text-amber-400">
+                Warning: This action is permanent and cannot be undone. The user will need to create a new account to sign in again.
+              </span>
+            </p>
+            
+            <DeleteAuthUser />
           </div>
         </div>
       </main>
