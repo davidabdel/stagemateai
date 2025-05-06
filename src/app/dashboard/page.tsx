@@ -67,9 +67,8 @@ export default function Dashboard() {
         console.log('Dashboard: Fetching user credits for userId:', userId);
         setCreditsLoading(true);
         
-        // Add timestamp to force a fresh fetch from the database
-        const timestamp = new Date().getTime();
-        const { data, error } = await getUserCredits(userId, timestamp);
+        // Fetch user credits
+        const { data, error } = await getUserCredits(userId);
         
         console.log('Dashboard: User credits result:', data, error);
         
