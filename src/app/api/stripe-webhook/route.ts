@@ -55,7 +55,35 @@ export async function POST(req: NextRequest) {
         console.log(`Subscription ${event.type}:`, subscription.id);
         
         if (subscription.customer) {
-          await handleSubscriptionUpdated(subscription.customer.toString(), subscription.id);
+          // Check if this is a renewal event by examining the current_period_start
+          const previousEvent = event.data.previous_attributes as any;
+          
+          if (previousEvent && previousEvent.current_period_start) {
+            // This is a renewal - the billing period has changed
+            console.log('Subscription renewal detected - resetting credits');
+            await handleSubscriptionRenewal(subscription.customer.toString(), subscription.id);
+          } else {
+            // Regular update, not a renewal
+            await handleSubscriptionUpdated(subscription.customer.toString(), subscription.id);
+          }
+        }
+        break;
+      }
+      
+      // Handle invoice payment succeeded - another way to detect renewals
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice;
+        console.log('Invoice payment succeeded:', invoice.id);
+        
+        // Check if this is a subscription renewal
+        if (invoice.billing_reason === 'subscription_cycle' && invoice.customer) {
+          // Get the subscription ID from the invoice lines
+          const subscriptionId = invoice.lines?.data?.[0]?.subscription;
+          
+          if (subscriptionId) {
+            console.log('Subscription renewal via invoice detected - resetting credits');
+            await handleSubscriptionRenewal(invoice.customer.toString(), subscriptionId.toString());
+          }
         }
         break;
       }
@@ -103,18 +131,41 @@ async function handleSubscriptionCreated(customerId: string, subscriptionId: str
       throw new Error('Cannot identify user from Stripe customer');
     }
     
-    // Find the user in Supabase by email
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
+    // Try to find the user in consolidated_users first
+    let userId: string;
+    const { data: consolidatedUserData, error: consolidatedUserError } = await supabase
+      .from('consolidated_users')
+      .select('user_id')
       .eq('email', userEmail)
       .single();
     
-    if (userError || !userData) {
-      throw new Error(`User not found for email: ${userEmail}`);
+    if (consolidatedUserError || !consolidatedUserData) {
+      // Fall back to users table if it exists
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', userEmail)
+        .single();
+      
+      if (userError || !userData) {
+        // Try to find by customer ID in stripe_customers table
+        const { data: customerData, error: customerError } = await supabase
+          .from('stripe_customers')
+          .select('user_id')
+          .eq('customer_id', customerId)
+          .single();
+        
+        if (customerError || !customerData) {
+          throw new Error(`User not found for email: ${userEmail} or customer ID: ${customerId}`);
+        }
+        
+        userId = customerData.user_id;
+      } else {
+        userId = userData.id;
+      }
+    } else {
+      userId = consolidatedUserData.user_id;
     }
-    
-    const userId = userData.id;
     
     // Get the subscription plan details
     const subscriptionItems = subscription.items.data;
@@ -123,6 +174,71 @@ async function handleSubscriptionCreated(customerId: string, subscriptionId: str
     }
     
     const priceId = subscriptionItems[0].price.id;
+    
+    // Determine plan type based on price ID
+    let planType = 'standard';
+    if (priceId.includes('agency')) {
+      planType = 'agency';
+    }
+    
+    // Store subscription information in the database
+    // First, check if we have a subscriptions table
+    const { error: tableCheckError } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .limit(1);
+    
+    // If the table exists, store the subscription information
+    if (!tableCheckError) {
+      // Store subscription period information
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: userId,
+          subscription_id: subscriptionId,
+          customer_id: customerId,
+          price_id: priceId,
+          plan_type: planType,
+          status: subscription.status,
+          current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+          current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'subscription_id' });
+      
+      if (subscriptionError) {
+        console.error('Error storing subscription information:', subscriptionError);
+      } else {
+        console.log(`Stored subscription period information for user ${userId}`);
+      }
+    } else {
+      console.log('Subscriptions table does not exist, skipping subscription storage');
+      
+      // Update the subscription_status in consolidated_users and user_usage
+      const { error: consolidatedError } = await supabase
+        .from('consolidated_users')
+        .update({
+          subscription_status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (consolidatedError) {
+        console.error('Error updating subscription status in consolidated_users:', consolidatedError);
+      }
+      
+      const { error: usageError } = await supabase
+        .from('user_usage')
+        .update({
+          subscription_status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (usageError) {
+        console.error('Error updating subscription status in user_usage:', usageError);
+      }
+    }
     
     // Update user credits based on the subscription plan
     await updateUserCreditsForPlan(userId, priceId);
@@ -162,21 +278,120 @@ async function handleSubscriptionCancelled(customerId: string) {
       throw new Error('Cannot identify user from Stripe customer');
     }
     
-    // Find the user in Supabase by email
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
+    // Try to find the user in consolidated_users first
+    let userId: string;
+    const { data: consolidatedUserData, error: consolidatedUserError } = await supabase
+      .from('consolidated_users')
+      .select('user_id')
       .eq('email', userEmail)
       .single();
     
-    if (userError || !userData) {
-      throw new Error(`User not found for email: ${userEmail}`);
+    if (consolidatedUserError || !consolidatedUserData) {
+      // Fall back to users table if it exists
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', userEmail)
+        .single();
+      
+      if (userError || !userData) {
+        // Try to find by customer ID in stripe_customers table
+        const { data: customerData, error: customerError } = await supabase
+          .from('stripe_customers')
+          .select('user_id')
+          .eq('customer_id', customerId)
+          .single();
+        
+        if (customerError || !customerData) {
+          throw new Error(`User not found for email: ${userEmail} or customer ID: ${customerId}`);
+        }
+        
+        userId = customerData.user_id;
+      } else {
+        userId = userData.id;
+      }
+    } else {
+      userId = consolidatedUserData.user_id;
     }
     
-    const userId = userData.id;
+    // Get the latest subscription for this customer to check the end date
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'canceled',
+      limit: 1
+    });
     
-    // Reset user to free plan
-    await updateUserToFreePlan(userId);
+    if (subscriptions.data.length > 0) {
+      const subscription = subscriptions.data[0];
+      const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
+      const now = new Date();
+      
+      // Update subscription status to 'canceled' but keep the plan active until the end of the period
+      // First, check if we have a subscriptions table
+      const { error: tableCheckError } = await supabase
+        .from('subscriptions')
+        .select('id')
+        .limit(1);
+      
+      if (!tableCheckError) {
+        // Update subscription status in the database
+        const { error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .upsert({
+            user_id: userId,
+            subscription_id: subscription.id,
+            customer_id: customerId,
+            status: 'canceled',
+            current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+            cancel_at_period_end: true,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'subscription_id' });
+        
+        if (subscriptionError) {
+          console.error('Error updating subscription information:', subscriptionError);
+        }
+      }
+      
+      // Update the subscription_status in consolidated_users and user_usage
+      const { error: consolidatedError } = await supabase
+        .from('consolidated_users')
+        .update({
+          subscription_status: 'canceled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (consolidatedError) {
+        console.error('Error updating subscription status in consolidated_users:', consolidatedError);
+      }
+      
+      const { error: usageError } = await supabase
+        .from('user_usage')
+        .update({
+          subscription_status: 'canceled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (usageError) {
+        console.error('Error updating subscription status in user_usage:', usageError);
+      }
+      
+      // Only reset to free plan if the subscription period has already ended
+      if (now > currentPeriodEnd) {
+        console.log(`Subscription period has ended, resetting user ${userId} to free plan`);
+        await updateUserToFreePlan(userId);
+      } else {
+        console.log(`Subscription canceled but still active until ${currentPeriodEnd.toISOString()} for user ${userId}`);
+        // Schedule a job to reset the user to free plan after the period ends
+        // This would ideally be done with a scheduled function or cron job
+        // For now, we'll rely on the user's next login after the period ends
+      }
+    } else {
+      // No active subscription found, reset to free plan immediately
+      console.log(`No active subscription found for user ${userId}, resetting to free plan`);
+      await updateUserToFreePlan(userId);
+    }
     
     console.log(`Successfully processed subscription cancellation for user ${userId}`);
   } catch (error) {
@@ -238,5 +453,159 @@ async function updateUserToFreePlan(userId: string) {
     console.log(`Reset user ${userId} to free plan`);
   } catch (error) {
     console.error('Error updating user to free plan:', error);
+  }
+}
+
+// Handle subscription renewal - reset credits and start a new billing period
+async function handleSubscriptionRenewal(customerId: string, subscriptionId: string) {
+  try {
+    console.log(`Processing subscription renewal ${subscriptionId} for customer ${customerId}`);
+    
+    // Get subscription details from Stripe
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    
+    // Get customer details to find the user
+    const customer = await stripe.customers.retrieve(customerId);
+    
+    if (!customer || customer.deleted) {
+      throw new Error('Customer not found or deleted');
+    }
+    
+    // Get the user ID from the customer metadata or email
+    const userEmail = typeof customer === 'object' ? customer.email : null;
+    
+    if (!userEmail) {
+      throw new Error('Cannot identify user from Stripe customer');
+    }
+    
+    // Find the user in the database by email
+    let userId: string;
+    const { data: userData, error: userError } = await supabase
+      .from('consolidated_users')
+      .select('user_id')
+      .eq('email', userEmail)
+      .single();
+    
+    if (userError || !userData) {
+      // Try to find by customer ID in stripe_customers table if it exists
+      const { data: customerData, error: customerError } = await supabase
+        .from('stripe_customers')
+        .select('user_id')
+        .eq('customer_id', customerId)
+        .single();
+      
+      if (customerError || !customerData) {
+        throw new Error(`User not found for email: ${userEmail} or customer ID: ${customerId}`);
+      }
+      
+      // Use the user ID from the stripe_customers table
+      userId = customerData.user_id;
+    } else {
+      userId = userData.user_id;
+    }
+    
+    // Get the subscription plan details
+    const subscriptionItems = subscription.items.data;
+    if (subscriptionItems.length === 0) {
+      throw new Error('No subscription items found');
+    }
+    
+    const priceId = subscriptionItems[0].price.id;
+    
+    // Determine plan type based on price ID
+    let planType = 'standard';
+    if (priceId.includes('agency')) {
+      planType = 'agency';
+    }
+    
+    // Update subscription period information in the database if the subscriptions table exists
+    const { error: tableCheckError } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .limit(1);
+    
+    // If the table exists, update the subscription information
+    if (!tableCheckError) {
+      // Update subscription period information
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: userId,
+          subscription_id: subscriptionId,
+          customer_id: customerId,
+          price_id: priceId,
+          plan_type: planType,
+          status: subscription.status,
+          current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+          current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'subscription_id' });
+      
+      if (subscriptionError) {
+        console.error('Error updating subscription information:', subscriptionError);
+      } else {
+        console.log(`Updated subscription period information for user ${userId}`);
+      }
+    } else {
+      console.log('Subscriptions table does not exist, skipping subscription update');
+    }
+    
+    // Reset user credits based on the subscription plan
+    await resetUserCreditsForRenewal(userId, priceId);
+    
+    console.log(`Successfully processed subscription renewal ${subscriptionId} for user ${userId}`);
+  } catch (error) {
+    console.error('Error handling subscription renewal:', error);
+  }
+}
+
+// Reset user credits for subscription renewal
+async function resetUserCreditsForRenewal(userId: string, priceId: string) {
+  try {
+    // Determine plan type and credits based on price ID
+    let planType = 'standard';
+    let photosLimit = 50;
+    
+    if (priceId.includes('agency')) {
+      planType = 'agency';
+      photosLimit = 300;
+    }
+    
+    console.log(`Resetting credits for user ${userId} to ${photosLimit} for plan ${planType}`);
+    
+    // Reset photos_used to 0 and set photos_limit to the plan limit
+    // This effectively resets the credits for the new billing period
+    const { error: usageError } = await supabase
+      .from('user_usage')
+      .update({
+        photos_used: 0,
+        photos_limit: photosLimit,
+        plan_type: planType,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+    
+    if (usageError) {
+      throw new Error(`Failed to reset user credits: ${usageError.message}`);
+    }
+    
+    // Also update consolidated_users table
+    const { error: consolidatedError } = await supabase
+      .from('consolidated_users')
+      .update({
+        photos_used: 0,
+        photos_limit: photosLimit,
+        plan_type: planType,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+    
+    if (consolidatedError) {
+      console.error(`Error updating consolidated_users: ${consolidatedError.message}`);
+    }
+    
+    console.log(`Successfully reset credits for user ${userId}`);
+  } catch (error) {
+    console.error('Error resetting user credits for renewal:', error);
   }
 }

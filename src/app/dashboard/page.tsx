@@ -37,6 +37,7 @@ export default function Dashboard() {
   const [creditsLoading, setCreditsLoading] = useState(true);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = React.useRef<HTMLDivElement>(null);
+  const [notification, setNotification] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
 
   // Check authentication
   useEffect(() => {
@@ -57,8 +58,43 @@ export default function Dashboard() {
       
       setUser(userWithEmail);
       
-      // Fetch user credits once authenticated
+      // Check if subscription has expired and fetch user credits once authenticated
+      checkSubscriptionStatus(user.id);
       fetchUserCredits(user.id);
+    }
+    
+    // Function to check if a canceled subscription has expired
+    async function checkSubscriptionStatus(userId: string) {
+      try {
+        console.log('Dashboard: Checking subscription status for userId:', userId);
+        
+        // Call the API endpoint to check subscription status
+        const response = await fetch('/api/check-subscription-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId }),
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to check subscription status:', response.statusText);
+          return;
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === 'updated') {
+          console.log('Subscription has expired and been reset to free plan');
+          // Show a notification to the user that their subscription has expired
+          setNotification({
+            message: 'Your subscription has expired. Your account has been reset to the free plan.',
+            type: 'info'
+          });
+        }
+      } catch (error) {
+        console.error('Error checking subscription status:', error);
+      }
     }
     
     // Function to fetch user credits from database with cache busting
@@ -196,6 +232,28 @@ export default function Dashboard() {
       <Suspense fallback={null}>
         <SuccessMessage />
       </Suspense>
+      
+      {/* Subscription expiration notification */}
+      {notification && (
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 mt-2 rounded-md ${notification.type === 'info' ? 'bg-blue-50 text-blue-800 border border-blue-200' : notification.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-green-50 text-green-800 border border-green-200'}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+              </svg>
+              <p>{notification.message}</p>
+            </div>
+            <button 
+              onClick={() => setNotification(null)} 
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
       <header className="bg-white dark:bg-[#18181b] shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <Link href="/dashboard" className="flex items-center">
