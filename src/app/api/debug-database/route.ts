@@ -87,7 +87,6 @@ export async function GET(req: NextRequest) {
             photos_limit: 3,
             photos_used: 0,
             plan_type: 'free',
-            subscription_status: 'inactive',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }]);
@@ -106,7 +105,6 @@ export async function GET(req: NextRequest) {
             photos_limit: 3,
             photos_used: 0,
             plan_type: 'free',
-            subscription_status: 'inactive',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }]);

@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
       photos_limit: 3, // Default free photo limit
       photos_used: 0,
       plan_type: 'free',
-      subscription_status: 'inactive',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -53,7 +52,6 @@ export async function POST(req: NextRequest) {
             photos_limit: defaultValues.photos_limit,
             photos_used: defaultValues.photos_used,
             plan_type: defaultValues.plan_type,
-            subscription_status: defaultValues.subscription_status,
             created_at: defaultValues.created_at,
             updated_at: defaultValues.updated_at
           }]);
@@ -101,7 +99,6 @@ export async function POST(req: NextRequest) {
             photos_limit: defaultValues.photos_limit,
             photos_used: defaultValues.photos_used,
             plan_type: defaultValues.plan_type,
-            subscription_status: defaultValues.subscription_status,
             created_at: defaultValues.created_at,
             updated_at: defaultValues.updated_at
           }]);
