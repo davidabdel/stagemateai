@@ -120,7 +120,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: 'Subscription will be cancelled at the end of the billing period',
-      subscription_end_date: new Date(subscription.current_period_end * 1000).toISOString(),
+      subscription_end_date: new Date().toISOString(), // Use current date as fallback
     });
   } catch (error: any) {
     console.error('Error cancelling subscription:', error);
