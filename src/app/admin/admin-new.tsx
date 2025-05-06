@@ -364,7 +364,7 @@ export default function AdminDashboard() {
         </div>
       </header>
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white dark:bg-[#18181b] rounded-2xl shadow-xl p-8 mb-8">
           <h2 className="text-3xl font-bold text-[#1d2939] dark:text-white mb-6">Admin Dashboard</h2>
           
@@ -534,7 +534,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
