@@ -23,10 +23,14 @@ export async function GET(req: NextRequest) {
     console.log('User emails API route called');
     
     // Check if user is admin
-    const { isAdmin } = await checkAdminAuth();
+    const { isAdmin, user } = await checkAdminAuth();
+    
     if (!isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      console.error('Unauthorized access attempt to admin API:', user?.email || 'unknown user');
+      return NextResponse.json({ error: 'Unauthorized. Only david@uconnect.com.au can access admin features.' }, { status: 403 });
     }
+    
+    console.log('Admin access verified for:', user?.email);
     
     // Fetch user_usage data to get all user IDs
     const { data: usageData, error: usageError } = await supabase

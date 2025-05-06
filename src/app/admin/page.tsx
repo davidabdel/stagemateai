@@ -9,16 +9,54 @@ export default function AdminPage() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
 
   useEffect(() => {
+    let isMounted = true;
+    
     async function checkAdminAccess() {
       try {
+        console.log('Checking admin access...');
+        
+        // Get the current session first
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("Session error:", sessionError);
+          if (isMounted) {
+            setAuthError("Session error: " + sessionError.message);
+            setLoading(false);
+          }
+          return;
+        }
+        
+        if (!sessionData.session) {
+          console.log("No active session found");
+          if (isMounted) {
+            setAuthError("Please sign in to access the admin page");
+            setLoading(false);
+          }
+          return;
+        }
+        
         // Get current user
         const { data: { user }, error } = await supabase.auth.getUser();
         
-        if (error || !user) {
+        if (error) {
           console.error("Authentication error:", error);
-          router.push("/auth");
+          if (isMounted) {
+            setAuthError("Authentication error: " + error.message);
+            setLoading(false);
+          }
+          return;
+        }
+        
+        if (!user) {
+          console.error("No user found despite having session");
+          if (isMounted) {
+            setAuthError("No user found. Please sign in again.");
+            setLoading(false);
+          }
           return;
         }
 
@@ -27,20 +65,31 @@ export default function AdminPage() {
         // Check if user is the admin (david@uconnect.com.au)
         if (user.email === "david@uconnect.com.au") {
           console.log("Admin access verified");
-          setIsAdmin(true);
+          if (isMounted) {
+            setIsAdmin(true);
+            setLoading(false);
+          }
         } else {
           console.error("Unauthorized access attempt by:", user.email);
-          router.push("/");
+          if (isMounted) {
+            setAuthError(`Access denied. Only david@uconnect.com.au can access the admin page.`);
+            setLoading(false);
+          }
         }
       } catch (error) {
         console.error("Error checking admin access:", error);
-        router.push("/auth");
-      } finally {
-        setLoading(false);
+        if (isMounted) {
+          setAuthError("An unexpected error occurred. Please try again.");
+          setLoading(false);
+        }
       }
     }
 
     checkAdminAccess();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   if (loading) {
@@ -57,9 +106,28 @@ export default function AdminPage() {
   if (!isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
+        <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
           <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
-          <p className="mt-4">You do not have permission to access this page.</p>
+          {authError ? (
+            <p className="mt-4 text-gray-700">{authError}</p>
+          ) : (
+            <p className="mt-4 text-gray-700">You do not have permission to access this page.</p>
+          )}
+          
+          <div className="mt-6">
+            <button 
+              onClick={() => router.push('/auth')} 
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Sign In
+            </button>
+            <button 
+              onClick={() => router.push('/')} 
+              className="ml-4 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
+            >
+              Go Home
+            </button>
+          </div>
         </div>
       </div>
     );
