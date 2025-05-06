@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/utils/supabaseClient';
 import Link from 'next/link';
 
-export default function PaymentSuccessPage() {
+// Create a client component that uses useSearchParams
+function PaymentSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
@@ -142,5 +143,19 @@ export default function PaymentSuccessPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Main component that wraps the content in a Suspense boundary
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <div className="bg-white shadow-lg rounded-lg p-8 max-w-md w-full text-center">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Loading Payment Details</h1>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+      </div>
+    </div>}>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
