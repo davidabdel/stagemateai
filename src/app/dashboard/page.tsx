@@ -32,9 +32,11 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   // Store authenticated user information
-  const [_user, setUser] = useState<{ id: string } | null>(null);
+  const [_user, setUser] = useState<{ id: string, email?: string } | null>(null);
   const [userCredits, setUserCredits] = useState<UserCredits | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(true);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = React.useRef<HTMLDivElement>(null);
 
   // Check authentication
   useEffect(() => {
@@ -45,18 +47,29 @@ export default function Dashboard() {
         router.push('/auth');
         return;
       }
-      setUser(user);
+      
+      // Get user email from Supabase
+      const { data: userData } = await supabase.auth.getUser();
+      const userWithEmail = {
+        ...user,
+        email: userData?.user?.email || ''
+      };
+      
+      setUser(userWithEmail);
       
       // Fetch user credits once authenticated
       fetchUserCredits(user.id);
     }
     
-    // Function to fetch user credits
+    // Function to fetch user credits from database with cache busting
     async function fetchUserCredits(userId: string) {
       try {
         console.log('Dashboard: Fetching user credits for userId:', userId);
         setCreditsLoading(true);
-        const { data, error } = await getUserCredits(userId);
+        
+        // Add timestamp to force a fresh fetch from the database
+        const timestamp = new Date().getTime();
+        const { data, error } = await getUserCredits(userId, timestamp);
         
         console.log('Dashboard: User credits result:', data, error);
         
@@ -70,6 +83,7 @@ export default function Dashboard() {
           console.log('Dashboard: Photos limit:', data.photos_limit);
           console.log('Dashboard: Photos used:', data.photos_used);
           console.log('Dashboard: Remaining photos:', data.photos_limit - data.photos_used);
+          console.log('Dashboard: Plan type:', data.plan_type);
         } else {
           console.log('Dashboard: No user credits data returned');
         }
@@ -103,6 +117,23 @@ export default function Dashboard() {
       subscription.unsubscribe();
     };
   }, [router]);
+  
+  // Handle click outside for profile menu
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    }
+    
+    if (profileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [profileMenuOpen]);
   
   // Fetch listings from Supabase
   useEffect(() => {
@@ -158,18 +189,112 @@ export default function Dashboard() {
             />
           </Link>
           <nav className="flex items-center">
-            <Link href="#" className="text-[#64748b] dark:text-[#cbd5e1] hover:text-[#2563eb] dark:hover:text-[#60a5fa] mx-4">
-              Settings
-            </Link>
-            <button 
-              onClick={async () => {
-                await signOut();
-                router.push('/');
-              }} 
-              className="text-[#64748b] dark:text-[#cbd5e1] hover:text-[#2563eb] dark:hover:text-[#60a5fa] bg-transparent border-none cursor-pointer"
-            >
-              Logout
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                className="flex items-center justify-center w-10 h-10 rounded-full bg-[#6ecfc9] text-white font-bold text-lg mx-4 hover:bg-[#5eb8b3] transition-colors"
+                aria-expanded={profileMenuOpen}
+                aria-haspopup="true"
+              >
+                {_user?.email?.charAt(0).toUpperCase() || 'M'}
+              </button>
+              
+              {profileMenuOpen && (
+                <div ref={profileMenuRef} className="absolute right-0 mt-2 w-72 bg-white dark:bg-[#18181b] rounded-lg shadow-xl z-10 overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <div className="w-12 h-12 rounded-full bg-[#6ecfc9] flex items-center justify-center text-white font-bold text-xl">
+                          {_user?.email?.charAt(0).toUpperCase() || 'M'}
+                        </div>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          {_user?.email?.split('@')[0] || 'My Lovable'}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {_user?.email || 'user@example.com'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Credits Used</h3>
+                        <Link href="/dashboard/upgrade" className="text-xs text-[#2563eb] hover:text-[#1e40af] dark:text-[#60a5fa] dark:hover:text-[#93c5fd]">
+                          Manage
+                        </Link>
+                      </div>
+                      <div className="mt-1">
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                          <div 
+                            className="bg-[#2563eb] h-2.5 rounded-full" 
+                            style={{ width: userCredits ? `${Math.min(100, (userCredits.photos_used / Math.max(1, userCredits.photos_limit)) * 100)}%` : '0%' }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {userCredits ? userCredits.photos_used : 0}/{userCredits ? userCredits.photos_limit : 0}
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {userCredits ? Math.max(0, userCredits.photos_limit - userCredits.photos_used) : 0} credits remaining
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="py-1">
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 rounded-full bg-[#6ecfc9] flex items-center justify-center text-white font-bold text-sm mr-3">
+                          {_user?.email?.charAt(0).toUpperCase() || 'M'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {_user?.email?.split('@')[0] || 'My Lovable'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {userCredits?.plan_type?.toUpperCase() || 'FREE'}
+                          </p>
+                        </div>
+                        <div className="ml-auto">
+                          <svg className="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        router.push('/dashboard/upgrade');
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      Manage Subscription
+                    </button>
+                    
+                    <Link 
+                      href="#"
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      Help Center
+                    </Link>
+                    
+                    <button 
+                      onClick={async () => {
+                        setProfileMenuOpen(false);
+                        await signOut();
+                        router.push('/');
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </nav>
         </div>
       </header>
