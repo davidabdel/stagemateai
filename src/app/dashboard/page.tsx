@@ -67,6 +67,24 @@ export default function Dashboard() {
         console.log('Dashboard: Fetching user credits for userId:', userId);
         setCreditsLoading(true);
         
+        // First, try to sync credits between tables to ensure consistency
+        try {
+          // Use fetch to call our sync-credits API without requiring admin auth
+          // This is a silent operation that happens in the background
+          fetch(`/api/sync-credits/silent?userId=${userId}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }).catch(err => {
+            // Just log the error but don't fail the main operation
+            console.log('Dashboard: Silent credit sync attempt failed:', err);
+          });
+        } catch (syncErr) {
+          // Don't let sync errors affect the main flow
+          console.log('Dashboard: Error in silent credit sync:', syncErr);
+        }
+        
         // Fetch user credits
         const { data, error } = await getUserCredits(userId);
         
@@ -243,7 +261,8 @@ export default function Dashboard() {
                   
                   <div className="py-1">
                     <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
                         <div className="w-8 h-8 rounded-full bg-[#6ecfc9] flex items-center justify-center text-white font-bold text-sm mr-3">
                           {_user?.email?.charAt(0).toUpperCase() || 'M'}
                         </div>
