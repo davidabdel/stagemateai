@@ -341,7 +341,7 @@ export default function UpgradePage() {
                             Processing...
                           </>
                         ) : (
-                          `Downgrade to ${plan.name}`
+                          `${userCredits?.plan_type === 'free' || userCredits?.plan_type === 'trial' ? 'Upgrade' : 'Downgrade'} to ${plan.name}`
                         )}
                       </button>
                     ) : (
