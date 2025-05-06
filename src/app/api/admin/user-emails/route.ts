@@ -22,14 +22,11 @@ export async function GET(req: NextRequest) {
   try {
     console.log('User emails API route called');
     
-    // In development, we'll bypass the admin check for testing purposes
-    // In production, you should uncomment this code
-    /*
+    // Check if user is admin
     const { isAdmin } = await checkAdminAuth();
     if (!isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
-    */
     
     // Fetch user_usage data to get all user IDs
     const { data: usageData, error: usageError } = await supabase
