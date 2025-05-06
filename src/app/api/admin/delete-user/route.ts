@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabaseClient';
+import { supabaseAdmin } from '@/utils/supabaseAdmin';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,8 +13,8 @@ export async function POST(req: NextRequest) {
     
     console.log(`Attempting to delete user with email: ${email}`);
     
-    // Fetch all users from the user_usage table
-    const { data: usageData, error: usageError } = await supabase
+    // Fetch all users from the user_usage table using admin client
+    const { data: usageData, error: usageError } = await supabaseAdmin
       .from('user_usage')
       .select('*');
     
@@ -64,8 +65,8 @@ export async function POST(req: NextRequest) {
     
     console.log(`Found user ID to delete: ${userIdToDelete}`);
     
-    // Delete the user from the user_usage table
-    const { error: deleteError } = await supabase
+    // Delete the user from the user_usage table using admin client
+    const { error: deleteError } = await supabaseAdmin
       .from('user_usage')
       .delete()
       .eq('user_id', userIdToDelete);
@@ -79,9 +80,15 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
     
+    // Also delete from consolidated_users if it exists using admin client
+    await supabaseAdmin
+      .from('consolidated_users')
+      .delete()
+      .eq('user_id', userIdToDelete);
+    
     // Try to delete from profiles table if it exists
     try {
-      await supabase
+      await supabaseAdmin
         .from('profiles')
         .delete()
         .eq('id', userIdToDelete);

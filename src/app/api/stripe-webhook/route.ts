@@ -8,12 +8,18 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 // Initialize Stripe with the secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-04-30.basil' as any,
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: '2023-10-16' as Stripe.LatestApiVersion,
 });
 
 // Webhook secret for verifying the event
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+// Map of price IDs to plan types and credits
+const PRICE_TO_PLAN_MAP: Record<string, { type: string, name: string, credits: number }> = {
+  'price_1RJvUsERoniVImA52TcIJy5c': { type: 'agency', name: 'Agency Plan', credits: 300 },
+  'price_1OqXXXXXXXXXXXXXXXXXXXXX': { type: 'standard', name: 'Standard Plan', credits: 100 },
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,10 +47,18 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         console.log('Checkout session completed:', session.id);
+        console.log('Full session data:', JSON.stringify(session, null, 2));
         
-        // Process the subscription
-        if (session.mode === 'subscription' && session.customer && session.subscription) {
+        // Get the user ID from the client_reference_id
+        if (session.client_reference_id) {
+          console.log('Found client_reference_id:', session.client_reference_id);
+          await processCompletedCheckout(session);
+        } else if (session.customer && session.subscription) {
+          // Fallback to subscription handling
+          console.log('No client_reference_id, using customer ID:', session.customer);
           await handleSubscriptionCreated(session.customer.toString(), session.subscription.toString());
+        } else {
+          console.error('Cannot identify user from session');
         }
         break;
       }
@@ -78,6 +92,152 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Error processing webhook:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// Process a completed checkout session
+async function processCompletedCheckout(session: Stripe.Checkout.Session) {
+  try {
+    console.log('Processing completed checkout session:', session.id);
+    
+    // Get the user ID from the client_reference_id
+    const userId = session.client_reference_id;
+    if (!userId) {
+      throw new Error('No client_reference_id found in session');
+    }
+    
+    console.log('Updating user plan for userId:', userId);
+    
+    // Get the line items to determine the plan
+    let planType = 'standard';
+    let creditsToAdd = 100;
+    let planName = 'Standard Plan';
+    
+    if (session.line_items) {
+      // If line_items is available directly
+      console.log('Line items available in session');
+      processLineItems(session.line_items.data, userId);
+    } else {
+      // Need to retrieve line items
+      console.log('Retrieving line items for session');
+      const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
+      await processLineItems(lineItems.data, userId);
+    }
+    
+    console.log('Successfully processed checkout session for user', userId);
+  } catch (error) {
+    console.error('Error processing checkout session:', error);
+  }
+}
+
+// Process line items to determine plan and update user
+async function processLineItems(lineItems: Stripe.LineItem[], userId: string) {
+  try {
+    if (!lineItems || lineItems.length === 0) {
+      throw new Error('No line items found');
+    }
+    
+    // Get the price ID from the first line item
+    const priceId = lineItems[0].price?.id;
+    if (!priceId) {
+      throw new Error('No price ID found in line item');
+    }
+    
+    console.log('Found price ID:', priceId);
+    
+    // Determine plan type and credits from price ID
+    let planType = 'standard';
+    let creditsToAdd = 100;
+    
+    if (PRICE_TO_PLAN_MAP[priceId]) {
+      planType = PRICE_TO_PLAN_MAP[priceId].type;
+      creditsToAdd = PRICE_TO_PLAN_MAP[priceId].credits;
+      console.log(`Using plan ${planType} with ${creditsToAdd} credits from price map`);
+    } else {
+      console.log(`Price ID ${priceId} not found in map, using default values`);
+    }
+    
+    // First, get current user data
+    const { data: userData, error: userError } = await supabase
+      .from('user_usage')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    
+    if (userError && userError.code !== 'PGRST116') {
+      // PGRST116 is the "not found" error, which we can handle by creating a new record
+      throw new Error(`Error fetching user data: ${userError.message}`);
+    }
+    
+    // Calculate new credits - add to existing credits rather than replacing
+    const currentCredits = userData?.photos_limit || 0;
+    const newCredits = currentCredits + creditsToAdd;
+    
+    console.log('Updating user credits:', {
+      userId,
+      currentCredits,
+      creditsToAdd,
+      newCredits,
+      planType
+    });
+    
+    // Update user_usage table using upsert
+    const { data: updatedData, error: updateError } = await supabase
+      .from('user_usage')
+      .upsert({
+        user_id: userId,
+        photos_limit: newCredits,
+        photos_used: userData?.photos_used || 0,
+        plan_type: planType,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+    
+    if (updateError) {
+      throw new Error(`Error updating user_usage: ${updateError.message}`);
+    }
+    
+    console.log('Successfully updated user_usage table');
+    
+    // Also update consolidated_users table
+    const { data: consolidatedUser, error: findError } = await supabase
+      .from('consolidated_users')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    
+    if (consolidatedUser) {
+      // Update existing record
+      const { error } = await supabase
+        .from('consolidated_users')
+        .update({
+          plan_type: planType,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (error) {
+        console.error('Error updating consolidated_users:', error);
+      }
+    } else {
+      // Create new record
+      const { error } = await supabase
+        .from('consolidated_users')
+        .insert({
+          user_id: userId,
+          email: 'user@example.com', // Fallback email
+          plan_type: planType,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      
+      if (error) {
+        console.error('Error inserting into consolidated_users:', error);
+      }
+    }
+    
+    console.log('Successfully processed line items and updated user plan');
+  } catch (error) {
+    console.error('Error processing line items:', error);
   }
 }
 

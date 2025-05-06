@@ -1,7 +1,7 @@
 "use client";
 
-import AdminDashboard from "./admin-new";
+import SimpleAdminDashboard from "./simple-admin";
 
 export default function AdminPage() {
-  return <AdminDashboard />;
+  return <SimpleAdminDashboard />;
 }

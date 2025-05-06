@@ -3,13 +3,15 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/utils/supabaseClient";
+import { supabaseAdmin } from "@/utils/supabaseAdmin";
 import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "@clerk/nextjs";
 
 type UserCredit = {
   id: string;
   user_id: string;
-  email?: string; // Added email field
+  email?: string;
+  display_name?: string; // Added display name field
   photos_used: number;
   photos_limit: number;
   plan_type: string;
@@ -49,111 +51,89 @@ export default function AdminDashboard() {
   async function fetchData() {
     try {
       setIsLoading(true);
-      console.log('Fetching user data from Supabase and Clerk...');
+      console.log('Fetching user data from API endpoint...');
       
-      // Fetch user credits directly from Supabase
-      const { data: usageData, error: usageError } = await supabase
-        .from('user_usage')
-        .select('*');
+      // Use the debug-users API endpoint that's working correctly
+      const response = await fetch('/api/admin/debug-users', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
       
-      if (usageError) {
-        console.error('Error fetching usage data:', usageError);
-        toast.error('Failed to load usage data');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error fetching users from API:', response.status, errorData);
+        toast.error('Failed to load user data');
         return;
       }
       
-      console.log('Successfully fetched usage data:', usageData);
+      const data = await response.json();
+      const consolidatedUsers = data.users || [];
       
-      // Fetch real user data from our API endpoint that connects to Clerk
-      let emailData: Record<string, string> = {};
-      try {
-        console.log('Attempting to fetch user emails from API...');
-        // Use absolute URL to avoid path resolution issues
-        const emailResponse = await fetch('/api/admin/user-emails', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache'
-          }
-        });
-        
-        console.log('Email response status:', emailResponse.status);
-        
-        if (!emailResponse.ok) {
-          throw new Error(`Error fetching emails: ${emailResponse.status} ${emailResponse.statusText}`);
-        }
-        
-        const emailsJson = await emailResponse.json();
-        console.log('Email API response:', emailsJson);
-        
-        if (emailsJson.users && Array.isArray(emailsJson.users)) {
-          // Create a map of user IDs to emails
-          emailsJson.users.forEach((user: {id: string, email: string}) => {
-            if (user.id && user.email) {
-              emailData[user.id] = user.email;
-            }
-          });
-          console.log('Successfully created email mapping:', emailData);
-        } else {
-          console.warn('Email API response did not contain expected users array:', emailsJson);
-        }
-      } catch (emailError) {
-        console.error('Error fetching email data:', emailError);
-        // Continue with placeholder emails if we can't get real ones
-      }
+      console.log('Successfully fetched users from API:', consolidatedUsers);
+      console.log('Number of users fetched:', consolidatedUsers.length);
       
-      // Combine the data
-      const usersWithEmails = usageData?.map(user => {
-        const userId = user.user_id;
-        const shortId = userId.substring(0, 6);
-        
-        // Hardcoded email mappings for known users
-        const knownEmails: Record<string, string> = {
-          '8b5fe1': 'david@uconnect.com.au',  // Admin user
-          'e745a6': 'davidnvr28@gmail.com',   // Regular user
-        };
-        
-        // Use known email if available, then try API data, then fallback to placeholder
-        let email = knownEmails[shortId] || emailData[userId];
-        
-        // If still no email, use a consistent domain based on user ID
-        if (!email) {
-          // Use consistent domain based on user ID to avoid random changes on refresh
-          const domain = shortId === '8b5fe1' ? 'uconnect.com.au' : 'stagemateai.com';
-          email = `${shortId}@${domain}`;
-        }
-        
-        // Override specific emails for demo purposes if needed
-        if (shortId === '8b5fe1') {
-          email = 'david@uconnect.com.au';
-        } else if (shortId === 'e745a6') {
-          email = 'davidnvr28@gmail.com';
-        }
-        
-        return {
-          ...user,
-          email: email
-        };
-      }) || [];
+      // Debug: Check if we have RLS policies restricting access
+      console.log('Current user context:', { userId: useAuth().userId });
       
-      console.log('Fetched user data with emails:', usersWithEmails);
-      setUserCredits(usersWithEmails);
+      // Map the consolidated users data to the UserCredit type
+      const mappedUsers = consolidatedUsers?.map((user: any) => ({
+        id: user.id,
+        user_id: user.user_id,
+        email: user.email,
+        display_name: user.display_name,
+        photos_used: user.photos_used,
+        photos_limit: user.photos_limit,
+        plan_type: user.plan_type,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        // Add any additional fields needed
+      })) || [];
       
-      // Calculate stats
-      const standardSubscriptions = usersWithEmails.filter(user => 
-        user.plan_type === 'standard').length || 0;
-      const agencySubscriptions = usersWithEmails.filter(user => 
-        user.plan_type === 'agency').length || 0;
+      console.log('Mapped consolidated users data:', mappedUsers);
+      setUserCredits(mappedUsers);
+      
+      // Log the mapped users to debug
+      console.log('Mapped users array:', mappedUsers);
+      console.log('Mapped users length:', mappedUsers.length);
+      
+      // Make sure we're setting the user credits state with the correct data
+      setUserCredits(mappedUsers);
+      
+      // Calculate stats - with extra logging
+      console.log('Calculating stats for users...');
+      
+      // Count users by plan type
+      const usersByPlanType: Record<string, number> = {};
+      mappedUsers.forEach((user: UserCredit) => {
+        const planType = (user.plan_type || 'unknown').toLowerCase();
+        usersByPlanType[planType] = (usersByPlanType[planType] || 0) + 1;
+      });
+      console.log('Users by plan type:', usersByPlanType);
+      
+      const standardSubscriptions = mappedUsers.filter((user: UserCredit) => 
+        (user.plan_type || '').toLowerCase() === 'standard').length || 0;
+      const agencySubscriptions = mappedUsers.filter((user: UserCredit) => 
+        (user.plan_type || '').toLowerCase() === 'agency').length || 0;
+      
+      console.log('Standard subscriptions:', standardSubscriptions);
+      console.log('Agency subscriptions:', agencySubscriptions);
       
       // Calculate monthly revenue (standard plan: $19/month, agency plan: $49/month)
       const standardRevenue = standardSubscriptions * 19;
       const agencyRevenue = agencySubscriptions * 49;
       const totalMonthlyRevenue = standardRevenue + agencyRevenue;
       
+      // Calculate total credits used
+      const totalCreditsUsed = mappedUsers.reduce((acc: number, user: UserCredit) => acc + (user.photos_used || 0), 0);
+      console.log('Total credits used:', totalCreditsUsed);
+      
       const stats = {
-        totalUsers: usersWithEmails.length || 0,
+        totalUsers: mappedUsers.length,
         activeSubscriptions: standardSubscriptions + agencySubscriptions,
-        totalCreditsUsed: usersWithEmails.reduce((acc, user) => acc + (user.photos_used || 0), 0) || 0,
+        totalCreditsUsed: totalCreditsUsed,
         monthlyRevenue: totalMonthlyRevenue
       };
       
@@ -168,7 +148,7 @@ export default function AdminDashboard() {
   }
 
   // Handle adding credits to a user
-  const handleAddCredits = async () => {
+  async function handleAddCredits() {
     if (!selectedUserId) {
       toast.error('Please select a user');
       return;
@@ -179,25 +159,21 @@ export default function AdminDashboard() {
       return;
     }
     
+    setIsAddingCredits(true);
     try {
-      setIsAddingCredits(true);
-      
-      // Get current user data
-      const { data: userData, error: fetchError } = await supabase
-        .from('user_usage')
-        .select('*')
-        .eq('user_id', selectedUserId)
-        .single();
-      
-      if (fetchError) {
-        throw fetchError;
+      // Find the selected user
+      const selectedUser = userCredits.find(user => user.user_id === selectedUserId);
+      if (!selectedUser) {
+        toast.error('User not found');
+        return;
       }
       
-      // Calculate new photos limit
-      const newLimit = (userData.photos_limit || 0) + creditsToAdd;
+      // Calculate the new credits limit
+      const newLimit = (selectedUser.photos_limit || 0) + creditsToAdd;
       
-      // Update the user's credits
-      const { error } = await supabase
+      // Update the user's credits in both tables
+      // First update user_usage using admin client
+      const { error: usageError } = await supabaseAdmin
         .from('user_usage')
         .update({ 
           photos_limit: newLimit,
@@ -206,15 +182,35 @@ export default function AdminDashboard() {
         })
         .eq('user_id', selectedUserId);
       
-      if (error) {
-        throw error;
+      if (usageError) {
+        console.error('Error updating credits in user_usage:', usageError);
+        toast.error('Failed to update credits in user_usage');
+        return;
       }
       
-      toast.success(`Successfully added ${creditsToAdd} credits to user`);
-      fetchData(); // Refresh data
-    } catch (error: any) {
+      // Then update consolidated_users using admin client
+      const { error: consolidatedError } = await supabaseAdmin
+        .from('consolidated_users')
+        .update({ 
+          photos_limit: newLimit,
+          plan_type: planType,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', selectedUserId);
+      
+      if (consolidatedError) {
+        console.error('Error updating credits in consolidated_users:', consolidatedError);
+        toast.error('Failed to update credits in consolidated_users');
+        return;
+      }
+      
+      toast.success(`Added ${creditsToAdd} credits to user`);
+      
+      // Refresh the data
+      await fetchData();
+    } catch (error) {
       console.error('Error adding credits:', error);
-      toast.error(`Failed to add credits: ${error.message}`);
+      toast.error('Failed to add credits');
     } finally {
       setIsAddingCredits(false);
     }
@@ -225,8 +221,8 @@ export default function AdminDashboard() {
     try {
       setIsFixingPlans(true);
       
-      // Update all Free and Trial plans to Standard
-      const { error } = await supabase
+      // Update all free and trial plans to standard in user_usage table
+      const { error } = await supabaseAdmin
         .from('user_usage')
         .update({ 
           plan_type: 'standard',
@@ -236,6 +232,19 @@ export default function AdminDashboard() {
       
       if (error) {
         throw error;
+      }
+      
+      // Also update consolidated_users table
+      const { error: consolidatedError } = await supabaseAdmin
+        .from('consolidated_users')
+        .update({ 
+          plan_type: 'standard',
+          updated_at: new Date().toISOString()
+        })
+        .in('plan_type', ['free', 'Free', 'trial', 'Trial']);
+      
+      if (consolidatedError) {
+        throw consolidatedError;
       }
       
       toast.success('Successfully fixed plan issues');
@@ -378,7 +387,7 @@ export default function AdminDashboard() {
                   <option value="">Select a user</option>
                   {userCredits.map((user) => (
                     <option key={user.user_id} value={user.user_id}>
-                      {user.email} - {user.plan_type} - {Math.max(0, user.photos_limit - user.photos_used)} credits
+                      {user.email} {user.display_name ? `(${user.display_name})` : ''} - {user.plan_type} - {Math.max(0, user.photos_limit - user.photos_used)} credits
                     </option>
                   ))}
                 </select>
@@ -426,6 +435,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
                     <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Email</th>
+                    <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Display Name</th>
                     <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Photos Used</th>
                     <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Photos Limit</th>
                     <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Credits Remaining</th>
@@ -435,7 +445,8 @@ export default function AdminDashboard() {
                 <tbody>
                   {userCredits.map((credit) => (
                     <tr key={credit.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.email}</td>
+                      <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.email || 'N/A'}</td>
+                      <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.display_name || 'N/A'}</td>
                       <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.photos_used || 0}</td>
                       <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.photos_limit || 0}</td>
                       <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">

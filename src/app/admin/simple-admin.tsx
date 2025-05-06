@@ -28,27 +28,38 @@ export default function SimpleAdminDashboard() {
   async function fetchData() {
     try {
       setIsLoading(true);
+      console.log('Fetching user data from API endpoint...');
       
-      // Fetch user credits directly from Supabase
-      const { data, error } = await supabase
-        .from('user_usage')
-        .select('*');
+      // Use our API endpoint to fetch all users
+      const response = await fetch('/api/admin/count-users', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
       
-      if (error) {
-        console.error('Error fetching data:', error);
-        toast.error('Failed to load data');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error fetching users from API:', response.status, errorData);
+        toast.error('Failed to load user data');
         return;
       }
       
-      console.log('Fetched user data:', data);
-      setUserCredits(data || []);
+      const data = await response.json();
+      console.log('API response:', data);
+      console.log('User count from API:', data.count);
+      
+      const users = data.users || [];
+      console.log('Number of users found:', users.length);
+      setUserCredits(users);
       
       // Calculate stats
       const stats = {
-        totalUsers: data?.length || 0,
-        activeSubscriptions: data?.filter(user => 
+        totalUsers: users.length || 0,
+        activeSubscriptions: users.filter((user: any) => 
           user.plan_type === 'standard' || user.plan_type === 'agency').length || 0,
-        totalCreditsUsed: data?.reduce((acc, user) => acc + (user.photos_used || 0), 0) || 0
+        totalCreditsUsed: users.reduce((acc: number, user: any) => acc + (user.photos_used || 0), 0) || 0
       };
       
       setStats(stats);
@@ -239,7 +250,7 @@ export default function SimpleAdminDashboard() {
                   <option value="">Select a user</option>
                   {userCredits.map((user) => (
                     <option key={user.user_id} value={user.user_id}>
-                      {user.user_id} - {user.plan_type} - {Math.max(0, user.photos_limit - user.photos_used)} credits
+                      {user.email || 'No Email'} - {user.plan_type} - {Math.max(0, user.photos_limit - user.photos_used)} credits
                     </option>
                   ))}
                 </select>
@@ -286,7 +297,7 @@ export default function SimpleAdminDashboard() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">User ID</th>
+                    <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Email</th>
                     <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Photos Used</th>
                     <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Photos Limit</th>
                     <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Credits Remaining</th>
@@ -296,7 +307,7 @@ export default function SimpleAdminDashboard() {
                 <tbody>
                   {userCredits.map((credit) => (
                     <tr key={credit.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.user_id}</td>
+                      <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.email || 'No Email'}</td>
                       <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.photos_used || 0}</td>
                       <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{credit.photos_limit || 0}</td>
                       <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">

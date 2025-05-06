@@ -85,10 +85,11 @@ export async function deleteListing(id: string) {
 }
 
 // Get user credits
-export async function getUserCredits(userId: string) {
+export async function getUserCredits(userId: string, timestamp?: number) {
   try {
-    console.log('Fetching user credits for userId:', userId);
+    console.log('Fetching user credits for userId:', userId, timestamp ? `(timestamp: ${timestamp})` : '');
     
+    // Timestamp is ignored in the actual query, it's just used to force a fresh fetch in the client
     const { data, error } = await supabase
       .from('user_usage')
       .select('*')
