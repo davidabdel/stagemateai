@@ -263,16 +263,17 @@ export default function Dashboard() {
                     <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-[#6ecfc9] flex items-center justify-center text-white font-bold text-sm mr-3">
-                          {_user?.email?.charAt(0).toUpperCase() || 'M'}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {_user?.email?.split('@')[0] || 'My Lovable'}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {userCredits?.plan_type?.toUpperCase() || 'FREE'}
-                          </p>
+                          <div className="w-8 h-8 rounded-full bg-[#6ecfc9] flex items-center justify-center text-white font-bold text-sm mr-3">
+                            {_user?.email?.charAt(0).toUpperCase() || 'M'}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {_user?.email?.split('@')[0] || 'My Lovable'}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {userCredits?.plan_type?.toUpperCase() || 'FREE'}
+                            </p>
+                          </div>
                         </div>
                         <div className="ml-auto">
                           <svg className="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
