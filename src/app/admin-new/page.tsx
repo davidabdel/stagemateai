@@ -62,17 +62,46 @@ export default function AdminNewPage() {
 
         console.log("Current user:", user.email);
         
-        // Check if user is the admin (david@uconnect.com.au)
-        if (user.email === "david@uconnect.com.au") {
-          console.log("Admin access verified");
+        // First check: Verify if user is the admin (david@uconnect.com.au)
+        if (user.email !== "david@uconnect.com.au") {
+          console.error("Unauthorized access attempt by:", user.email);
+          if (isMounted) {
+            setAuthError(`Access denied. Only david@uconnect.com.au can access the admin page.`);
+            setLoading(false);
+          }
+          return;
+        }
+        
+        // Second check: Verify with server-side API for additional security
+        try {
+          const authResponse = await fetch('/api/admin-new/auth-check', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache'
+            }
+          });
+          
+          if (!authResponse.ok) {
+            const errorData = await authResponse.json();
+            throw new Error(errorData.error || 'Server authorization failed');
+          }
+          
+          const authData = await authResponse.json();
+          
+          if (!authData.authorized) {
+            throw new Error('Server denied admin access');
+          }
+          
+          console.log("Server verified admin access for:", authData.user?.email);
           if (isMounted) {
             setIsAdmin(true);
             setLoading(false);
           }
-        } else {
-          console.error("Unauthorized access attempt by:", user.email);
+        } catch (error: any) {
+          console.error("Server authorization error:", error);
           if (isMounted) {
-            setAuthError(`Access denied. Only david@uconnect.com.au can access the admin page.`);
+            setAuthError(`Server denied admin access: ${error.message || 'Unknown error'}`);
             setLoading(false);
           }
         }
