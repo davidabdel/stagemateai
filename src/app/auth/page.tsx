@@ -66,7 +66,19 @@ export default function AuthPage() {
       });
 
       // Log the full response for debugging
-      console.log('Supabase sign-up response:', { data, error });
+      console.log('Supabase sign-up response:', { 
+        user: data?.user ? {
+          id: data.user.id,
+          email: data.user.email,
+          created_at: data.user.created_at
+        } : null,
+        session: data?.session ? 'Session exists' : 'No session',
+        error: error ? {
+          message: error.message,
+          status: error.status,
+          code: error.code
+        } : null
+      });
 
       if (error) {
         console.error('Supabase error details:', error);
