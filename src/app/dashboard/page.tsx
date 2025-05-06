@@ -66,17 +66,30 @@ export default function Dashboard() {
       fetchUserCredits(user.id);
     }
     
-    // Function to ensure user records exist in the database
+    // Function to ensure user records exist in the database using the API endpoint
     async function ensureUserRecordsExist(userId: string, email: string) {
       try {
         console.log('Dashboard: Ensuring user records exist for userId:', userId);
         
-        // Import the user creation service
-        const { createNewUserRecords } = await import('@/utils/userCreationService');
+        // Call the API endpoint to create user records if they don't exist
+        const response = await fetch('/api/create-user-records', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId,
+            email
+          }),
+        });
         
-        // Create user records if they don't exist
-        const result = await createNewUserRecords(userId, email);
-        console.log('Dashboard: User records check result:', result);
+        if (!response.ok) {
+          console.error('Dashboard: API response not OK when ensuring user records exist:', response.statusText);
+          return;
+        }
+        
+        const result = await response.json();
+        console.log('Dashboard: User records check API result:', result);
       } catch (error) {
         console.error('Dashboard: Error ensuring user records exist:', error);
         // Continue even if there's an error - this is just a safety measure

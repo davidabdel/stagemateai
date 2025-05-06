@@ -90,22 +90,32 @@ export default function AuthPage() {
       if (data && data.user) {
         console.log('User created successfully:', data.user);
         
-        // Create necessary database records for the new user
+        // Create necessary database records for the new user using the API endpoint
         try {
-          // Import dynamically to avoid server-side issues
-          const { createNewUserRecords } = await import('@/utils/userCreationService');
+          console.log('Creating user database records via API for:', data.user.id, email);
           
-          // Create user records in database
-          const result = await createNewUserRecords(data.user.id, email);
-          console.log('User database records creation result:', result);
+          // Call the API endpoint to create user records
+          const response = await fetch('/api/create-user-records', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: data.user.id,
+              email: email
+            }),
+          });
+          
+          const result = await response.json();
+          console.log('User database records creation API result:', result);
           
           if (!result.success) {
-            console.error('Warning: Failed to create user database records:', result.error);
+            console.error('Warning: API failed to create user database records:', result.error);
             // Continue with sign-up process even if database record creation fails
             // The records will be created when the user first accesses the dashboard
           }
         } catch (dbError) {
-          console.error('Error creating user database records:', dbError);
+          console.error('Error calling user database records API:', dbError);
           // Continue with sign-up process even if there's an error
         }
         
