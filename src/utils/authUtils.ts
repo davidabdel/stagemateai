@@ -27,13 +27,19 @@ export async function checkAdminAuth() {
     const user = await checkAuth();
     
     if (!user) {
+      console.log('No authenticated user found');
       return { user: null, isAdmin: false };
     }
     
+    console.log('Checking admin status for user:', user.email);
+    
     // Check if user is the specific admin email (david@uconnect.com.au)
     if (user.email === 'david@uconnect.com.au') {
+      console.log('Admin access verified for david@uconnect.com.au');
       return { user, isAdmin: true };
     }
+    
+    console.log('User is not the primary admin, checking admin_users table');
     
     // As a fallback, check if user has admin role in the database
     const { data, error } = await supabase
@@ -42,9 +48,12 @@ export async function checkAdminAuth() {
       .eq('user_id', user.id)
       .single();
     
+    const isAdmin = !!data && !error;
+    console.log('Admin table check result:', isAdmin ? 'Is admin' : 'Not admin');
+    
     return { 
       user, 
-      isAdmin: !!data && !error
+      isAdmin
     };
   } catch (error) {
     console.error("Error checking admin authentication:", error);

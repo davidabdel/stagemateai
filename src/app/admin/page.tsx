@@ -18,12 +18,15 @@ export default function AdminPage() {
         
         if (error || !user) {
           console.error("Authentication error:", error);
-          router.push("/login");
+          router.push("/auth");
           return;
         }
 
+        console.log("Current user:", user.email);
+        
         // Check if user is the admin (david@uconnect.com.au)
         if (user.email === "david@uconnect.com.au") {
+          console.log("Admin access verified");
           setIsAdmin(true);
         } else {
           console.error("Unauthorized access attempt by:", user.email);
@@ -31,7 +34,7 @@ export default function AdminPage() {
         }
       } catch (error) {
         console.error("Error checking admin access:", error);
-        router.push("/login");
+        router.push("/auth");
       } finally {
         setLoading(false);
       }
