@@ -1,7 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabaseClient';
 
-export async function PUT(request, { params }) {
+type Params = { id: string };
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Params }
+) {
   try {
     const id = params.id;
     const body = await request.json();
@@ -49,7 +54,10 @@ export async function PUT(request, { params }) {
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Params }
+) {
   try {
     const id = params.id;
     
