@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabaseClient';
 import { checkAuth } from '@/utils/authUtils';
 
-export default function PaymentSuccessPage() {
+// Component that uses useSearchParams, wrapped in Suspense boundary in the main component
+function PaymentSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -166,5 +167,19 @@ export default function PaymentSuccessPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Main component that wraps the content in a Suspense boundary
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
+        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+        <h1 className="text-2xl font-bold">Loading payment information...</h1>
+      </div>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
