@@ -144,6 +144,8 @@ export default function UpgradePage() {
     setCancelError(null);
     
     try {
+      console.log('Canceling subscription for user:', user.id);
+      
       // Call the API to cancel the subscription
       const response = await fetch('/api/cancel-subscription', {
         method: 'POST',
@@ -155,12 +157,18 @@ export default function UpgradePage() {
         }),
       });
       
+      // Get the response data regardless of status
+      const responseData = await response.json();
+      console.log('Cancel subscription response:', responseData);
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to cancel subscription');
+        // If the API returned an error message, use it
+        throw new Error(responseData.error || 'Failed to cancel subscription');
       }
       
       // Subscription cancelled successfully
+      console.log('Subscription successfully marked for cancellation');
+      
       // Redirect to a confirmation page or show a success message
       router.push('/dashboard?cancelled=true');
       
@@ -391,8 +399,11 @@ export default function UpgradePage() {
                   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white dark:bg-[#18181b] rounded-lg p-6 max-w-md w-full">
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Cancel Your Subscription</h3>
+                      <p className="text-gray-600 dark:text-gray-300 mb-4">
+                        Are you sure you want to cancel your subscription?
+                      </p>
                       <p className="text-gray-600 dark:text-gray-300 mb-6">
-                        Are you sure you want to cancel your subscription? You'll lose access to premium features at the end of your current billing period.
+                        <strong>Your existing credits will remain available</strong> until the end of your current billing period. After that, you'll be downgraded to the trial plan.
                       </p>
                       {cancelError && (
                         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
