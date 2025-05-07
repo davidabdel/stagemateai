@@ -8,6 +8,7 @@ import { checkAuth, signOut } from '@/utils/authUtils';
 import { generateStagedImage } from '@/utils/openaiService';
 import { getUserCredits } from '@/utils/supabaseService';
 import NoCreditsModal from '@/components/NoCreditsModal';
+import { convertHeicToJpeg, isHeicImage } from '@/utils/imageConverter';
 
 export default function ClientPage() {
   const router = useRouter();
@@ -137,13 +138,35 @@ export default function ClientPage() {
   }, [id, router]);
   
   // Handle file selection
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
-      setSelectedFile(file);
-      setSelectedFileName(file.name);
-      setUploadError('');
+      
+      try {
+        // Check if the file is a HEIC/HEIF image and convert if needed
+        if (isHeicImage(file)) {
+          // Set a temporary filename to show conversion is happening
+          setSelectedFileName(`Converting ${file.name}...`);
+          
+          // Convert HEIC to JPEG
+          const convertedFile = await convertHeicToJpeg(file);
+          setSelectedFile(convertedFile);
+          setSelectedFileName(convertedFile.name);
+          console.log('Converted HEIC image to JPEG:', convertedFile.name);
+        } else {
+          // For non-HEIC files, use as is
+          setSelectedFile(file);
+          setSelectedFileName(file.name);
+        }
+        
+        setUploadError('');
+      } catch (error) {
+        console.error('Error processing file:', error);
+        setUploadError('Error processing image file. Please try a different format.');
+        setSelectedFile(null);
+        setSelectedFileName('');
+      }
     }
   };
   
