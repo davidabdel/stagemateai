@@ -1,3 +1,6 @@
+import { supabase } from './supabaseClient';
+import { getUserCredits } from './supabaseService';
+
 // Decrement user credits (increment photos used)
 export async function decrementUserCredits(userId: string) {
   try {
