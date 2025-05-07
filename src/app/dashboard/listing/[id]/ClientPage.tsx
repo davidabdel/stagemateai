@@ -481,7 +481,7 @@ export default function ClientPage() {
               <h3 className="text-lg font-semibold text-[#1d2939] dark:text-white">Processing Images with AI</h3>
             </div>
             <p className="text-[#64748b] dark:text-[#94a3b8] mb-6">
-              We&apos;re currently processing {processingCount} image{processingCount !== 1 ? 's' : ''} with OpenAI. This may take a few minutes.
+              We&apos;re currently processing {processingCount} image{processingCount !== 1 ? 's' : ''} with StageMateAI. This may take a few minutes.
             </p>
             <div className="flex justify-between items-center">
               <p className="text-sm text-[#64748b] dark:text-[#94a3b8]">
