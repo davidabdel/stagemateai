@@ -76,13 +76,15 @@ export async function POST(request: Request) {
       // For testing purposes, allow downgrading without a Stripe subscription
       console.log('No Stripe subscription found, but proceeding with plan downgrade');
       
-      // Update the user's plan to trial in the database
+      // Mark subscription as canceled but KEEP existing plan and credits
+      // This preserves the user's access until the end of the billing period
       const { error: updateError } = await supabase
         .from('user_usage')
         .update({ 
-          plan_type: 'trial',
-          photos_limit: 3,  // Reset to trial plan limits
+          // NOT changing plan_type to preserve existing plan until end of billing cycle
+          cancellation_date: new Date().toISOString(),
           updated_at: new Date().toISOString()
+          // Intentionally NOT updating photos_limit to preserve existing credits
         })
         .eq('user_id', userId);
       
@@ -108,11 +110,14 @@ export async function POST(request: Request) {
     );
     
     // Update the user's plan status in the database
+    // Mark as canceled but preserve existing credits
     const { error: updateError } = await supabase
       .from('user_usage')
       .update({ 
         cancellation_date: new Date().toISOString(),
         updated_at: new Date().toISOString()
+        // Intentionally NOT updating photos_limit or plan_type yet
+        // Credits will remain until the end of the billing period
       })
       .eq('user_id', userId);
 
