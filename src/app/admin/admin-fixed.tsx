@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/utils/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
+import { Suspense } from "react";
 
 type UserCredit = {
   id: string;
@@ -21,6 +22,24 @@ type Stats = {
   activeSubscriptions: number;
   totalCreditsUsed: number;
   monthlyRevenue: number;
+};
+
+type Video = {
+  id: string;
+  title: string;
+  description: string;
+  videoId: string;
+  thumbnail: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type FAQ = {
+  id: string;
+  question: string;
+  answer: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export default function AdminDashboard() {
@@ -42,10 +61,77 @@ export default function AdminDashboard() {
   const [deleteError, setDeleteError] = useState('');
   const [isUpdatingEmails, setIsUpdatingEmails] = useState(false);
   const [isFixingAllUsers, setIsFixingAllUsers] = useState(false);
+  
+  // Videos state
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [videoTitle, setVideoTitle] = useState('');
+  const [videoDescription, setVideoDescription] = useState('');
+  const [videoId, setVideoId] = useState('');
+  const [selectedVideoId, setSelectedVideoId] = useState('');
+  const [isAddingVideo, setIsAddingVideo] = useState(false);
+  const [isEditingVideo, setIsEditingVideo] = useState(false);
+  const [isDeletingVideo, setIsDeletingVideo] = useState(false);
+  
+  // FAQs state
+  const [faqs, setFaqs] = useState<FAQ[]>([]);
+  const [faqQuestion, setFaqQuestion] = useState('');
+  const [faqAnswer, setFaqAnswer] = useState('');
+  const [selectedFaqId, setSelectedFaqId] = useState('');
+  const [isAddingFaq, setIsAddingFaq] = useState(false);
+  const [isEditingFaq, setIsEditingFaq] = useState(false);
+  const [isDeletingFaq, setIsDeletingFaq] = useState(false);
 
   useEffect(() => {
     fetchData();
+    fetchVideos();
+    fetchFaqs();
   }, []);
+
+  // Fetch videos from API
+  async function fetchVideos() {
+    try {
+      const response = await fetch('/api/admin/videos', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error fetching videos: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setVideos(data.videos || []);
+    } catch (error) {
+      console.error('Error fetching videos:', error);
+      toast.error('Failed to load videos');
+    }
+  }
+
+  // Fetch FAQs from API
+  async function fetchFaqs() {
+    try {
+      const response = await fetch('/api/admin/faqs', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error fetching FAQs: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setFaqs(data.faqs || []);
+    } catch (error) {
+      console.error('Error fetching FAQs:', error);
+      toast.error('Failed to load FAQs');
+    }
+  }
 
   async function fetchData() {
     try {
@@ -401,6 +487,260 @@ export default function AdminDashboard() {
     }
   };
 
+  // Handle adding a new video
+  const handleAddVideo = async () => {
+    if (!videoTitle || !videoId) {
+      toast.error('Title and YouTube Video ID are required');
+      return;
+    }
+    
+    try {
+      setIsAddingVideo(true);
+      
+      const response = await fetch('/api/admin/videos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: videoTitle,
+          description: videoDescription,
+          videoId: videoId,
+          thumbnail: `/images/video-thumbnail-${videos.length + 1}.jpg`
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error adding video: ${response.status} ${response.statusText}`);
+      }
+      
+      toast.success('Video added successfully');
+      
+      // Reset form
+      setVideoTitle('');
+      setVideoDescription('');
+      setVideoId('');
+      
+      // Refresh videos
+      fetchVideos();
+    } catch (error) {
+      console.error('Error adding video:', error);
+      toast.error('Failed to add video');
+    } finally {
+      setIsAddingVideo(false);
+    }
+  };
+  
+  // Handle editing a video
+  const handleEditVideo = async () => {
+    if (!selectedVideoId || !videoTitle || !videoId) {
+      toast.error('Please select a video and fill in all required fields');
+      return;
+    }
+    
+    try {
+      setIsEditingVideo(true);
+      
+      const response = await fetch(`/api/admin/videos/${selectedVideoId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: videoTitle,
+          description: videoDescription,
+          videoId: videoId
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error updating video: ${response.status} ${response.statusText}`);
+      }
+      
+      toast.success('Video updated successfully');
+      
+      // Reset form
+      setSelectedVideoId('');
+      setVideoTitle('');
+      setVideoDescription('');
+      setVideoId('');
+      
+      // Refresh videos
+      fetchVideos();
+    } catch (error) {
+      console.error('Error updating video:', error);
+      toast.error('Failed to update video');
+    } finally {
+      setIsEditingVideo(false);
+    }
+  };
+  
+  // Handle deleting a video
+  const handleDeleteVideo = async (id: string) => {
+    if (!id) return;
+    
+    if (!confirm('Are you sure you want to delete this video?')) {
+      return;
+    }
+    
+    try {
+      setIsDeletingVideo(true);
+      
+      const response = await fetch(`/api/admin/videos/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error deleting video: ${response.status} ${response.statusText}`);
+      }
+      
+      toast.success('Video deleted successfully');
+      
+      // Refresh videos
+      fetchVideos();
+    } catch (error) {
+      console.error('Error deleting video:', error);
+      toast.error('Failed to delete video');
+    } finally {
+      setIsDeletingVideo(false);
+    }
+  };
+  
+  // Handle selecting a video for editing
+  const handleSelectVideo = (video: Video) => {
+    setSelectedVideoId(video.id);
+    setVideoTitle(video.title);
+    setVideoDescription(video.description || '');
+    setVideoId(video.videoId);
+  };
+
+  // Handle adding a new FAQ
+  const handleAddFaq = async () => {
+    if (!faqQuestion || !faqAnswer) {
+      toast.error('Question and answer are required');
+      return;
+    }
+    
+    try {
+      setIsAddingFaq(true);
+      
+      const response = await fetch('/api/admin/faqs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          question: faqQuestion,
+          answer: faqAnswer
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error adding FAQ: ${response.status} ${response.statusText}`);
+      }
+      
+      toast.success('FAQ added successfully');
+      
+      // Reset form
+      setFaqQuestion('');
+      setFaqAnswer('');
+      
+      // Refresh FAQs
+      fetchFaqs();
+    } catch (error) {
+      console.error('Error adding FAQ:', error);
+      toast.error('Failed to add FAQ');
+    } finally {
+      setIsAddingFaq(false);
+    }
+  };
+  
+  // Handle editing a FAQ
+  const handleEditFaq = async () => {
+    if (!selectedFaqId || !faqQuestion || !faqAnswer) {
+      toast.error('Please select a FAQ and fill in all required fields');
+      return;
+    }
+    
+    try {
+      setIsEditingFaq(true);
+      
+      const response = await fetch(`/api/admin/faqs/${selectedFaqId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          question: faqQuestion,
+          answer: faqAnswer
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error updating FAQ: ${response.status} ${response.statusText}`);
+      }
+      
+      toast.success('FAQ updated successfully');
+      
+      // Reset form
+      setSelectedFaqId('');
+      setFaqQuestion('');
+      setFaqAnswer('');
+      
+      // Refresh FAQs
+      fetchFaqs();
+    } catch (error) {
+      console.error('Error updating FAQ:', error);
+      toast.error('Failed to update FAQ');
+    } finally {
+      setIsEditingFaq(false);
+    }
+  };
+  
+  // Handle deleting a FAQ
+  const handleDeleteFaq = async (id: string) => {
+    if (!id) return;
+    
+    if (!confirm('Are you sure you want to delete this FAQ?')) {
+      return;
+    }
+    
+    try {
+      setIsDeletingFaq(true);
+      
+      const response = await fetch(`/api/admin/faqs/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error deleting FAQ: ${response.status} ${response.statusText}`);
+      }
+      
+      toast.success('FAQ deleted successfully');
+      
+      // Refresh FAQs
+      fetchFaqs();
+    } catch (error) {
+      console.error('Error deleting FAQ:', error);
+      toast.error('Failed to delete FAQ');
+    } finally {
+      setIsDeletingFaq(false);
+    }
+  };
+  
+  // Handle selecting a FAQ for editing
+  const handleSelectFaq = (faq: FAQ) => {
+    setSelectedFaqId(faq.id);
+    setFaqQuestion(faq.question);
+    setFaqAnswer(faq.answer);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Toaster position="top-right" />
@@ -596,6 +936,265 @@ export default function AdminDashboard() {
                   >
                     {isFixingAllUsers ? 'Fixing Users...' : 'Fix All Users (Direct)'}
                   </button>
+                </div>
+              </div>
+
+              {/* Manage Videos Section */}
+              <div className="mb-8 p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-4">Manage Support Videos</h3>
+                
+                {/* Add/Edit Video Form */}
+                <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <h4 className="text-lg font-medium text-[#1d2939] dark:text-white mb-4">
+                    {selectedVideoId ? 'Edit Video' : 'Add New Video'}
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Video Title</label>
+                      <input 
+                        type="text" 
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        value={videoTitle}
+                        onChange={(e) => setVideoTitle(e.target.value)}
+                        placeholder="Enter video title"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">YouTube Video ID</label>
+                      <input 
+                        type="text" 
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        value={videoId}
+                        onChange={(e) => setVideoId(e.target.value)}
+                        placeholder="e.g. dQw4w9WgXcQ"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Video Description</label>
+                    <textarea 
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      value={videoDescription}
+                      onChange={(e) => setVideoDescription(e.target.value)}
+                      placeholder="Enter video description"
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <div className="flex space-x-4">
+                    {selectedVideoId ? (
+                      <>
+                        <button
+                          onClick={handleEditVideo}
+                          disabled={!videoTitle || !videoId || isEditingVideo}
+                          className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isEditingVideo ? 'Updating...' : 'Update Video'}
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            setSelectedVideoId('');
+                            setVideoTitle('');
+                            setVideoDescription('');
+                            setVideoId('');
+                          }}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-medium transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={handleAddVideo}
+                        disabled={!videoTitle || !videoId || isAddingVideo}
+                        className="bg-[#2563eb] hover:bg-[#1e40af] text-white px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isAddingVideo ? 'Adding...' : 'Add Video'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Video Preview */}
+                {videoId && (
+                  <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <h4 className="text-lg font-medium text-[#1d2939] dark:text-white mb-4">Video Preview</h4>
+                    <div className="aspect-w-16 aspect-h-9 w-full max-w-md mx-auto">
+                      <Suspense fallback={<div className="w-full h-48 bg-gray-200 animate-pulse rounded-lg"></div>}>
+                        <iframe
+                          src={`https://www.youtube.com/embed/${videoId}`}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="w-full h-full rounded-lg"
+                        ></iframe>
+                      </Suspense>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Videos Table */}
+                <div className="overflow-x-auto">
+                  <h4 className="text-lg font-medium text-[#1d2939] dark:text-white mb-4">Current Videos</h4>
+                  
+                  {videos.length === 0 ? (
+                    <p className="text-gray-500 dark:text-gray-400 italic">No videos found. Add your first video above.</p>
+                  ) : (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                          <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Title</th>
+                          <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Description</th>
+                          <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Video ID</th>
+                          <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {videos.map((video) => (
+                          <tr key={video.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{video.title}</td>
+                            <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">
+                              {video.description?.length > 50 ? `${video.description.substring(0, 50)}...` : video.description}
+                            </td>
+                            <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">{video.videoId}</td>
+                            <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleSelectVideo(video)}
+                                  className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteVideo(video.id)}
+                                  className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+              
+              {/* Manage FAQs Section */}
+              <div className="mb-8 p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-4">Manage FAQs</h3>
+                
+                {/* Add/Edit FAQ Form */}
+                <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <h4 className="text-lg font-medium text-[#1d2939] dark:text-white mb-4">
+                    {selectedFaqId ? 'Edit FAQ' : 'Add New FAQ'}
+                  </h4>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Question</label>
+                    <input 
+                      type="text" 
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      value={faqQuestion}
+                      onChange={(e) => setFaqQuestion(e.target.value)}
+                      placeholder="Enter question"
+                    />
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Answer</label>
+                    <textarea 
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      value={faqAnswer}
+                      onChange={(e) => setFaqAnswer(e.target.value)}
+                      placeholder="Enter answer"
+                      rows={4}
+                    />
+                  </div>
+                  
+                  <div className="flex space-x-4">
+                    {selectedFaqId ? (
+                      <>
+                        <button
+                          onClick={handleEditFaq}
+                          disabled={!faqQuestion || !faqAnswer || isEditingFaq}
+                          className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isEditingFaq ? 'Updating...' : 'Update FAQ'}
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            setSelectedFaqId('');
+                            setFaqQuestion('');
+                            setFaqAnswer('');
+                          }}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-medium transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={handleAddFaq}
+                        disabled={!faqQuestion || !faqAnswer || isAddingFaq}
+                        className="bg-[#2563eb] hover:bg-[#1e40af] text-white px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isAddingFaq ? 'Adding...' : 'Add FAQ'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* FAQs Table */}
+                <div className="overflow-x-auto">
+                  <h4 className="text-lg font-medium text-[#1d2939] dark:text-white mb-4">Current FAQs</h4>
+                  
+                  {faqs.length === 0 ? (
+                    <p className="text-gray-500 dark:text-gray-400 italic">No FAQs found. Add your first FAQ above.</p>
+                  ) : (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                          <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Question</th>
+                          <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Answer</th>
+                          <th className="text-left py-2 px-4 text-sm font-medium text-[#64748b] dark:text-[#94a3b8]">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {faqs.map((faq) => (
+                          <tr key={faq.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">
+                              {faq.question.length > 50 ? `${faq.question.substring(0, 50)}...` : faq.question}
+                            </td>
+                            <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">
+                              {faq.answer.length > 100 ? `${faq.answer.substring(0, 100)}...` : faq.answer}
+                            </td>
+                            <td className="py-2 px-4 text-sm text-[#1d2939] dark:text-white">
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleSelectFaq(faq)}
+                                  className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteFaq(faq.id)}
+                                  className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
             </>
