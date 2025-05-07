@@ -131,13 +131,30 @@ export async function POST(req: NextRequest) {
         console.error('Error fetching user usage:', usageError);
       }
       
-      // Determine which plan was purchased based on the price ID
+      // Determine which plan was purchased based on the price ID and amount
       const priceId = session.line_items?.data[0]?.price?.id || '';
-      const planType = priceId.includes('standard') ? 'standard' : 
-                      priceId.includes('agency') ? 'agency' : 'standard';
+      const amount = session.amount_total || 0;
+      
+      // Log the price ID and amount for debugging
+      console.log('Price ID:', priceId);
+      console.log('Amount total:', amount);
+      
+      // Better determination of plan type based on price ID and amount
+      // Agency plan is typically higher priced (around $397)
+      let planType = 'standard';
+      
+      // Check if amount is higher than $300 (30000 cents) - likely agency plan
+      if (amount >= 30000) {
+        planType = 'agency';
+      } else if (priceId.includes('agency')) {
+        planType = 'agency';
+      }
+      
+      console.log('Determined plan type:', planType);
       
       // Photos limit based on plan type
       const photosLimit = planType === 'agency' ? 300 : 50;
+      console.log('Setting photos limit to:', photosLimit);
       
       if (usageData) {
         // Get current photos limit (if any)
