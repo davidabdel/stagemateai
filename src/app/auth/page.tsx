@@ -4,13 +4,14 @@ import React, { useState } from "react";
 import { supabase } from "@/utils/supabaseClient";
 import Image from "next/image";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
+import { useRouter } from "next/navigation";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -43,126 +44,9 @@ export default function AuthPage() {
     }
   }
   
-  async function handleSignUp() {
-    if (!email || !password) {
-      setError("Please enter both email and password.");
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      setError("");
-      
-      console.log('Attempting to sign up with email:', email);
-      
-      // Sign up with Supabase with more detailed response
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          // Set email redirect to the current domain
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-        }
-      });
-
-      // Log the full response for debugging
-      console.log('Supabase sign-up response:', { 
-        user: data?.user ? {
-          id: data.user.id,
-          email: data.user.email,
-          created_at: data.user.created_at
-        } : null,
-        session: data?.session ? 'Session exists' : 'No session',
-        error: error ? {
-          message: error.message,
-          status: error.status,
-          code: error.code
-        } : null
-      });
-
-      if (error) {
-        console.error('Supabase error details:', error);
-        
-        // Handle rate limiting errors specifically
-        if (error.status === 429 || error.code === 'over_email_send_rate_limit') {
-          setError("You've reached the limit for email sending. Please wait a while before trying again, or contact support if you need immediate assistance.");
-          return;
-        }
-        
-        throw error;
-      }
-      
-      // Check if email confirmation was sent
-      if (data && data.user && data.user.identities && data.user.identities.length === 0) {
-        // This usually means the user already exists
-        setError("An account with this email already exists. Please sign in instead.");
-        return;
-      }
-      
-      if (data && data.user) {
-        console.log('User created successfully:', data.user);
-        
-        // Create necessary database records for the new user using the API endpoint
-        try {
-          console.log('Creating user database records via API for:', data.user.id, email);
-          
-          // Call the API endpoint to create user records
-          const response = await fetch('/api/create-user-records', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId: data.user.id,
-              email: email
-            }),
-          });
-          
-          const result = await response.json();
-          console.log('User database records creation API result:', result);
-          
-          if (!result.success) {
-            console.error('Warning: API failed to create user database records:', result.error);
-            // Continue with sign-up process even if database record creation fails
-            // The records will be created when the user first accesses the dashboard
-          }
-        } catch (dbError) {
-          console.error('Error calling user database records API:', dbError);
-          // Continue with sign-up process even if there's an error
-        }
-        
-        // Check if email confirmation is needed
-        if (data.session) {
-          // User was signed in automatically (email confirmation might be disabled)
-          console.log('User was signed in automatically');
-          window.location.href = "/dashboard";
-          return;
-        }
-        
-        // Show confirmation message
-        alert("Check your email for the confirmation link! If you don't see it, please check your spam folder.");
-      } else {
-        console.warn('User was not created properly:', data);
-        setError("Account creation was not completed. Please try again or contact support.");
-      }
-    } catch (err: unknown) {
-      console.error("Signup error:", err);
-      
-      // Provide more specific error messages
-      if (err instanceof Error) {
-        if (err.message.includes('email')) {
-          setError("There was an issue with the email address. Please check if it's valid.");
-        } else if (err.message.includes('password')) {
-          setError("Password issue: Ensure it's at least 6 characters long and meets security requirements.");
-        } else {
-          setError(err.message);
-        }
-      } else {
-        setError("Failed to sign up. Please try again or contact support.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
+  function handleSignUp() {
+    // Instead of trying to sign up the user here, redirect them to the /try page
+    router.push('/try');
   }
   
   async function handleGoogleSignIn() {
@@ -309,7 +193,12 @@ export default function AuthPage() {
           {/* Sign Up Link */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Don't have an account? <button onClick={handleSignUp} className="text-[#6ecfc9] hover:underline font-medium">Sign Up</button>
+              Don't have an account? <button 
+                onClick={() => router.push('/try')} 
+                className="text-[#6ecfc9] hover:underline font-medium bg-transparent border-none p-0 cursor-pointer"
+              >
+                Sign Up
+              </button>
             </p>
           </div>
         </div>
