@@ -75,7 +75,8 @@ export async function GET(req: NextRequest) {
     if (action === 'test_insert' || action === 'all') {
       dbInfo.test_insert = {};
       
-      const testUserId = `test-${Date.now()}`;
+      // Generate a proper UUID for testing
+      const testUserId = crypto.randomUUID();
       const testEmail = `test-${Date.now()}@example.com`;
       
       try {

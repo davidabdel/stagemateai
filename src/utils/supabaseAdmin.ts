@@ -1,15 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-// For security reasons, we'll use the same client as the regular supabase client
-// In a production environment, you would use a proper service role key
-// stored securely in environment variables
-const supabaseUrl = 'https://bpeoiqffhqszovsnwmjt.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZW9pcWZmaHFzem92c253bWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2MzgzNDAsImV4cCI6MjA2MTIxNDM0MH0.6sX-g6DDgaE_MkXwkoremlnB-oQ_7rwLN7XCmwQrao8';
+// Use environment variables if available, otherwise fall back to hardcoded values
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bpeoiqffhqszovsnwmjt.supabase.co';
 
-// Create a Supabase client
-// Note: Without a valid service role key, this will have the same permissions as the regular client
-// For development purposes, we'll use this approach
-export const supabaseAdmin = createClient(supabaseUrl, supabaseAnonKey);
+// For admin operations, we should use the service role key if available
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwZW9pcWZmaHFzem92c253bWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2MzgzNDAsImV4cCI6MjA2MTIxNDM0MH0.6sX-g6DDgaE_MkXwkoremlnB-oQ_7rwLN7XCmwQrao8';
 
-// For a proper implementation, you would need to obtain a valid service role key
-// from your Supabase dashboard and store it securely in environment variables
+// Create a Supabase client with admin privileges if service key is available
+// Otherwise, fall back to anon key (which will have limited permissions)
+const key = supabaseServiceKey || supabaseAnonKey;
+export const supabaseAdmin = createClient(supabaseUrl, key);
+
+// Note: For proper admin operations, you should ensure the SUPABASE_SERVICE_ROLE_KEY
+// is set in your environment variables

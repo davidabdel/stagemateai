@@ -26,23 +26,57 @@ export default function TryForFreePage() {
       setLoading(true);
       setError("");
       
+      console.log('Attempting to sign up with:', { email });
+      
+      // First try to sign in with the credentials (in case user already exists)
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (!signInError && signInData?.user) {
+        console.log('User already exists, signed in successfully');
+        router.push("/dashboard");
+        return;
+      }
+      
+      console.log('Sign in failed, attempting to sign up');
+      
+      // If sign in fails, try to sign up with email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            name,
-          },
-        },
+          data: { name },
+          emailRedirectTo: `${window.location.origin}/dashboard`
+        }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Signup error:', error);
+        
+        // If we get the database error, try a different approach
+        if (error.message.includes('Database error')) {
+          alert('We encountered an issue with signup. Please try again later or contact support.');
+          return;
+        }
+        
+        throw error;
+      }
       
-      // Redirect to dashboard after successful signup
+      console.log('Signup result:', data);
+      
+      // Show success message
       if (data?.user) {
+        alert("Account created successfully! Please check your email for confirmation instructions.");
+        setEmail("");
+        setPassword("");
+        setName("");
+      } else {
         router.push("/dashboard");
       }
     } catch (error: any) {
+      console.error('Error during signup:', error);
       setError(error.message || "An error occurred during sign up");
     } finally {
       setLoading(false);
