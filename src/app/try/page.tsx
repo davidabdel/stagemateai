@@ -66,8 +66,36 @@ export default function TryForFreePage() {
       
       console.log('Signup result:', data);
       
-      // Show success message
+      // Create user records in our database tables
       if (data?.user) {
+        try {
+          console.log('Creating user records for:', data.user.id, email, name);
+          
+          // Call our API to create user records
+          const createUserResponse = await fetch('/api/create-user-records', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              userId: data.user.id,
+              email: email,
+              name: name
+            })
+          });
+          
+          const createUserResult = await createUserResponse.json();
+          console.log('Create user records result:', createUserResult);
+          
+          if (!createUserResponse.ok) {
+            console.error('Failed to create user records:', createUserResult);
+          }
+        } catch (recordError) {
+          console.error('Error creating user records:', recordError);
+          // Continue despite error - user was created in auth
+        }
+        
+        // Show success message
         alert("Account created successfully! Please check your email for confirmation instructions.");
         setEmail("");
         setPassword("");

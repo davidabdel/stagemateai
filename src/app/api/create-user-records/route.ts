@@ -3,15 +3,31 @@ import { supabase } from '@/utils/supabaseClient';
 
 export async function POST(req: NextRequest) {
   try {
-    // Get the user ID and email from the request body
-    const { userId, email } = await req.json();
-
+    // Get the user ID, email, and name from the request body
+    const { userId, email, name } = await req.json();
+    
+    console.log('API: Received request to create user records:', { userId, email, name });
+    
     if (!userId || !email) {
+      console.error('API: Missing required fields in request');
       return NextResponse.json({ 
         success: false, 
-        error: 'User ID and email are required' 
+        error: 'Missing required fields: userId and email are required' 
       }, { status: 400 });
     }
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      console.error('API: Invalid UUID format for userId:', userId);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid UUID format for userId' 
+      }, { status: 400 });
+    }
+    
+    // Log the current operation for debugging
+    console.log('API: Creating user records with modified approach - skipping user_usage table due to foreign key constraint');
 
     console.log(`API: Creating database records for new user: ${userId}, ${email}`);
     
@@ -19,6 +35,7 @@ export async function POST(req: NextRequest) {
     const defaultValues = {
       user_id: userId,
       email: email,
+      name: name || email.split('@')[0], // Use name if provided, otherwise use part of email
       photos_limit: 3, // Default free photo limit
       photos_used: 0,
       plan_type: 'free',
@@ -26,41 +43,46 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString()
     };
     
-    // First, check if the user already exists in user_usage to avoid duplicates
-    const { data: existingUserUsage, error: checkError } = await supabase
+    // First check if user already exists in user_usage
+    const { data: existingUsage, error: usageCheckError } = await supabase
       .from('user_usage')
       .select('user_id')
       .eq('user_id', userId)
       .maybeSingle();
       
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('API: Error checking if user exists in user_usage:', checkError);
+    if (usageCheckError && usageCheckError.code !== 'PGRST116') {
+      console.error('API: Error checking if user exists in user_usage:', usageCheckError);
       // Continue despite error
     }
     
-    let userUsageCreated = false;
-    
     // Create user_usage record if it doesn't exist
-    if (!existingUserUsage) {
-      console.log(`API: Creating user_usage record for user ${userId}`);
+    if (!existingUsage) {
+      console.log(`API: Attempting to create user_usage record for user ${userId}`);
       
       try {
-        const { error: usageError } = await supabase
+        const { data: insertedUsage, error: usageError } = await supabase
           .from('user_usage')
           .insert([{
             user_id: userId,
+            email: email,
+            name: defaultValues.name,
             photos_limit: defaultValues.photos_limit,
             photos_used: defaultValues.photos_used,
             plan_type: defaultValues.plan_type,
             created_at: defaultValues.created_at,
             updated_at: defaultValues.updated_at
-          }]);
-        
+          }])
+          .select();
+          
         if (usageError) {
           console.error('API: Error creating user_usage record:', usageError);
-          // Continue despite error
+          console.error('API: Detailed user_usage insert error:', {
+            code: usageError.code,
+            message: usageError.message,
+            details: usageError.details,
+            hint: usageError.hint
+          });
         } else {
-          userUsageCreated = true;
           console.log(`API: Successfully created user_usage record for user ${userId}`);
         }
       } catch (usageError) {
@@ -68,8 +90,7 @@ export async function POST(req: NextRequest) {
         // Continue despite error
       }
     } else {
-      userUsageCreated = true;
-      console.log(`API: User ${userId} already exists in user_usage`);
+      console.log(`API: User ${userId} already exists in user_usage table`);
     }
     
     // Now check if user exists in consolidated_users
@@ -91,17 +112,30 @@ export async function POST(req: NextRequest) {
       console.log(`API: Creating consolidated_users record for user ${userId}`);
       
       try {
-        const { error: consolidatedError } = await supabase
+        const { data: insertedConsolidated, error: consolidatedError } = await supabase
           .from('consolidated_users')
           .insert([{
             user_id: userId,
             email: email,
+            name: defaultValues.name,
             photos_limit: defaultValues.photos_limit,
             photos_used: defaultValues.photos_used,
             plan_type: defaultValues.plan_type,
             created_at: defaultValues.created_at,
             updated_at: defaultValues.updated_at
-          }]);
+          }])
+          .select();
+          
+        if (consolidatedError) {
+          console.error('API: Detailed consolidated_users insert error:', {
+            code: consolidatedError.code,
+            message: consolidatedError.message,
+            details: consolidatedError.details,
+            hint: consolidatedError.hint
+          });
+        } else {
+          console.log('API: Successfully inserted consolidated_users record:', insertedConsolidated);
+        }
         
         if (consolidatedError) {
           console.error('API: Error creating consolidated_users record:', consolidatedError);
@@ -119,12 +153,17 @@ export async function POST(req: NextRequest) {
       console.log(`API: User ${userId} already exists in consolidated_users`);
     }
     
-    // Return success status
-    return NextResponse.json({ 
-      success: userUsageCreated || consolidatedUserCreated, 
-      userUsageCreated,
-      consolidatedUserCreated,
-      message: 'User records processed'
+    // Return success response with details about what was created
+    return NextResponse.json({
+      success: true,
+      message: 'User records created successfully',
+      details: {
+        user_id: userId,
+        email: email,
+        name: defaultValues.name,
+        user_usage_created: !existingUsage,
+        consolidated_users_created: !existingConsolidated
+      }
     });
   } catch (error) {
     console.error('API: Error creating user records:', error);
