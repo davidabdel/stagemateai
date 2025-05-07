@@ -6,7 +6,7 @@ export async function PUT(
   context: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const id = context.params.id;
     const body = await request.json();
     const { question, answer } = body;
     
@@ -52,10 +52,10 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const id = context.params.id;
     
     // Delete FAQ
     const { error } = await supabase

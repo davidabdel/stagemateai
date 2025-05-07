@@ -3,10 +3,10 @@ import { supabase } from '@/utils/supabaseClient';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const id = context.params.id;
     const body = await request.json();
     const { title, description, videoId, thumbnail } = body;
     
@@ -54,10 +54,10 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const id = context.params.id;
     
     // Delete video
     const { error } = await supabase
