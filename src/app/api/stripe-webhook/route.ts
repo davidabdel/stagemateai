@@ -252,8 +252,156 @@ async function handleSubscriptionCreated(customerId: string, subscriptionId: str
 // Handle subscription updated
 async function handleSubscriptionUpdated(customerId: string, subscriptionId: string) {
   try {
-    // Similar to handleSubscriptionCreated
-    await handleSubscriptionCreated(customerId, subscriptionId);
+    console.log(`Processing subscription update ${subscriptionId} for customer ${customerId}`);
+    
+    // Get subscription details from Stripe
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    
+    // Get customer details to find the user
+    const customer = await stripe.customers.retrieve(customerId);
+    
+    if (!customer || customer.deleted) {
+      throw new Error('Customer not found or deleted');
+    }
+    
+    // Get the user ID from the customer metadata or email
+    const userEmail = typeof customer === 'object' ? customer.email : null;
+    
+    if (!userEmail) {
+      throw new Error('Cannot identify user from Stripe customer');
+    }
+    
+    // Find the user in the database
+    let userId: string;
+    const { data: userData, error: userError } = await supabase
+      .from('consolidated_users')
+      .select('user_id')
+      .eq('email', userEmail)
+      .single();
+    
+    if (userError || !userData) {
+      // Try to find by customer ID in stripe_customers table
+      const { data: customerData, error: customerError } = await supabase
+        .from('stripe_customers')
+        .select('user_id')
+        .eq('customer_id', customerId)
+        .single();
+      
+      if (customerError || !customerData) {
+        throw new Error(`User not found for email: ${userEmail} or customer ID: ${customerId}`);
+      }
+      
+      userId = customerData.user_id;
+    } else {
+      userId = userData.user_id;
+    }
+    
+    // Get the subscription plan details
+    const subscriptionItems = subscription.items.data;
+    if (subscriptionItems.length === 0) {
+      throw new Error('No subscription items found');
+    }
+    
+    const priceId = subscriptionItems[0].price.id;
+    
+    // Determine if this is a downgrade by comparing with the current plan
+    const { data: currentUsage, error: usageError } = await supabase
+      .from('user_usage')
+      .select('plan_type, photos_limit, photos_used')
+      .eq('user_id', userId)
+      .single();
+    
+    if (usageError) {
+      console.error('Error fetching current user usage:', usageError);
+      throw new Error(`Failed to fetch current user usage: ${usageError.message}`);
+    }
+    
+    // Determine new plan type and credits
+    let newPlanType = 'standard';
+    let newPhotosLimit = 50;
+    
+    if (priceId.includes('agency')) {
+      newPlanType = 'agency';
+      newPhotosLimit = 300;
+    }
+    
+    // Check if this is a downgrade
+    const isDowngrade = 
+      (currentUsage.plan_type === 'agency' && newPlanType === 'standard') ||
+      (currentUsage.photos_limit > newPhotosLimit);
+    
+    console.log(`Plan change for user ${userId}: ${currentUsage.plan_type}(${currentUsage.photos_limit}) -> ${newPlanType}(${newPhotosLimit})`);
+    console.log(`Is downgrade: ${isDowngrade}`);
+    
+    // Update subscription information in the database
+    const { error: tableCheckError } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .limit(1);
+    
+    // If the subscriptions table exists, update it
+    if (!tableCheckError) {
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: userId,
+          subscription_id: subscriptionId,
+          customer_id: customerId,
+          price_id: priceId,
+          plan_type: newPlanType,
+          status: subscription.status,
+          current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+          current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+          updated_at: new Date().toISOString(),
+          // Store the previous plan info for downgrades
+          previous_plan_type: isDowngrade ? currentUsage.plan_type : null,
+          previous_photos_limit: isDowngrade ? currentUsage.photos_limit : null
+        }, { onConflict: 'subscription_id' });
+      
+      if (subscriptionError) {
+        console.error('Error updating subscription information:', subscriptionError);
+      }
+    }
+    
+    // If this is a downgrade, preserve the current credits until the end of the billing cycle
+    // Otherwise, update the credits immediately
+    if (isDowngrade) {
+      console.log(`Downgrade detected. Preserving current credits until the end of billing cycle for user ${userId}`);
+      
+      // Only update the plan_type but keep the current photos_limit
+      const { error: updateError } = await supabase
+        .from('user_usage')
+        .update({
+          plan_type: newPlanType,  // Update the plan type immediately
+          // Keep the current photos_limit until the end of the billing cycle
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (updateError) {
+        console.error('Error updating user plan type:', updateError);
+      }
+      
+      // Also update consolidated_users table
+      const { error: consolidatedError } = await supabase
+        .from('consolidated_users')
+        .update({
+          plan_type: newPlanType,  // Update the plan type immediately
+          // Keep the current photos_limit until the end of the billing cycle
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (consolidatedError) {
+        console.error('Error updating consolidated user plan type:', consolidatedError);
+      }
+    } else {
+      // For upgrades, update the credits immediately
+      console.log(`Upgrade or same tier change. Updating credits immediately for user ${userId}`);
+      await updateUserCreditsForPlan(userId, priceId);
+    }
+    
+    console.log(`Successfully processed subscription update ${subscriptionId} for user ${userId}`);
   } catch (error) {
     console.error('Error handling subscription updated:', error);
   }
@@ -562,6 +710,16 @@ async function handleSubscriptionRenewal(customerId: string, subscriptionId: str
 // Reset user credits for subscription renewal
 async function resetUserCreditsForRenewal(userId: string, priceId: string) {
   try {
+    console.log(`Resetting credits for user ${userId} at the start of new billing cycle`);
+    
+    // First, check if this user had a downgrade scheduled
+    // If so, we need to apply the new lower limit now
+    const { data: subscriptionData, error: subscriptionError } = await supabase
+      .from('subscriptions')
+      .select('previous_plan_type, previous_photos_limit, plan_type, price_id')
+      .eq('user_id', userId)
+      .single();
+    
     // Determine plan type and credits based on price ID
     let planType = 'standard';
     let photosLimit = 50;
@@ -571,15 +729,38 @@ async function resetUserCreditsForRenewal(userId: string, priceId: string) {
       photosLimit = 300;
     }
     
-    console.log(`Resetting credits for user ${userId} to ${photosLimit} for plan ${planType}`);
+    // Check if there was a previous downgrade that needs to be applied
+    if (!subscriptionError && subscriptionData && subscriptionData.previous_photos_limit) {
+      console.log(`Found previous downgrade for user ${userId}. Applying new lower limit.`);
+      console.log(`Previous plan: ${subscriptionData.previous_plan_type}, Previous limit: ${subscriptionData.previous_photos_limit}`);
+      console.log(`New plan: ${planType}, New limit: ${photosLimit}`);
+      
+      // Clear the previous plan info since we're applying it now
+      const { error: clearPreviousError } = await supabase
+        .from('subscriptions')
+        .update({
+          previous_plan_type: null,
+          previous_photos_limit: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (clearPreviousError) {
+        console.error('Error clearing previous plan info:', clearPreviousError);
+      }
+    } else {
+      console.log(`No previous downgrade found for user ${userId}. Applying standard renewal.`);
+    }
     
-    // Reset photos_used to 0 and set photos_limit to the plan limit
-    // This effectively resets the credits for the new billing period
+    console.log(`Setting credits for user ${userId} to ${photosLimit} for plan ${planType}`);
+    
+    // ALWAYS reset photos_used to 0 and set photos_limit to the current plan limit
+    // This ensures credits don't roll over between billing cycles
     const { error: usageError } = await supabase
       .from('user_usage')
       .update({
-        photos_used: 0,
-        photos_limit: photosLimit,
+        photos_used: 0,  // Reset used credits to 0
+        photos_limit: photosLimit,  // Set limit based on current plan
         plan_type: planType,
         updated_at: new Date().toISOString()
       })
@@ -593,8 +774,8 @@ async function resetUserCreditsForRenewal(userId: string, priceId: string) {
     const { error: consolidatedError } = await supabase
       .from('consolidated_users')
       .update({
-        photos_used: 0,
-        photos_limit: photosLimit,
+        photos_used: 0,  // Reset used credits to 0
+        photos_limit: photosLimit,  // Set limit based on current plan
         plan_type: planType,
         updated_at: new Date().toISOString()
       })
