@@ -3,7 +3,7 @@ import { supabase } from '@/utils/supabaseClient';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const id = params.id;
