@@ -148,7 +148,12 @@ export default function AuthPage() {
             <div>
               <div className="flex justify-between mb-1">
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-                <a href="#" className="text-sm text-[#6ecfc9] hover:underline">Forgot password?</a>
+                <button 
+                  onClick={() => router.push('/auth/reset-password')} 
+                  className="text-sm text-[#6ecfc9] hover:underline bg-transparent border-none p-0 cursor-pointer"
+                >
+                  Forgot password?
+                </button>
               </div>
               <input
                 id="password"
