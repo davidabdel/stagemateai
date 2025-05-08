@@ -145,18 +145,44 @@ export async function POST(request: Request) {
     let currentPeriodEnd: Date | null = null;
     try {
       // First, retrieve the subscription to get its details
+      console.log(`Retrieving subscription details for ID: ${stripeSubscriptionId}`);
       const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
       
       // Get the current period end date before cancellation
       currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
+      console.log(`Current subscription status: ${subscription.status}, Current period end: ${currentPeriodEnd}`);
       
-      // Cancel the subscription immediately using the direct API call
-      // This is the most reliable method to ensure the subscription is canceled in Stripe
-      const canceledSubscription = await stripe.subscriptions.cancel(stripeSubscriptionId);
-      
-      console.log('Successfully canceled Stripe subscription:', canceledSubscription.id, 
-                 'Status:', canceledSubscription.status,
-                 'Canceled at:', new Date((canceledSubscription as any).canceled_at * 1000).toISOString());
+      // Check if the subscription is already canceled
+      if (subscription.status === 'canceled') {
+        console.log(`Subscription ${stripeSubscriptionId} is already canceled`);
+      } else {
+        // Log the subscription details before cancellation
+        console.log(`Current subscription status before cancellation: ${subscription.status}`);
+        console.log(`Attempting to cancel subscription ${stripeSubscriptionId} in Stripe...`);
+        
+        // Cancel the subscription immediately using the direct API call
+        // This is the most reliable method to ensure the subscription is canceled in Stripe
+        const canceledSubscription = await stripe.subscriptions.cancel(stripeSubscriptionId);
+        
+        // Verify the cancellation was successful
+        if (canceledSubscription.status === 'canceled') {
+          console.log('Successfully canceled Stripe subscription:', canceledSubscription.id, 
+                     'Status:', canceledSubscription.status,
+                     'Canceled at:', new Date((canceledSubscription as any).canceled_at * 1000).toISOString());
+        } else {
+          console.error(`Unexpected status after cancellation: ${canceledSubscription.status}`);
+          
+          // Try to retrieve the subscription again to check its status
+          const verifySubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+          console.log(`Verified subscription status: ${verifySubscription.status}`);
+          
+          if (verifySubscription.status !== 'canceled') {
+            throw new Error(`Failed to cancel subscription: Status is ${verifySubscription.status}`);
+          } else {
+            console.log('Subscription was canceled but status not immediately updated in response');
+          }
+        }
+      }
     } catch (stripeError) {
       console.error('Error canceling Stripe subscription:', stripeError);
       // Continue anyway - we'll still mark the subscription as canceled in our database
