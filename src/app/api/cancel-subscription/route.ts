@@ -237,14 +237,40 @@ export async function POST(request: Request) {
       console.log('Continuing despite exception to ensure UI shows success');
     }
 
-    // Return success response
+    // Get the latest subscription status for debugging
+    let latestSubscriptionStatus = 'unknown';
+    let canceledAt = null;
+    let endedAt = null;
+    
+    try {
+      // Try to get the latest subscription status
+      const latestSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+      latestSubscriptionStatus = latestSubscription.status;
+      
+      // Get cancellation timestamps if available
+      if ((latestSubscription as any).canceled_at) {
+        canceledAt = new Date((latestSubscription as any).canceled_at * 1000).toISOString();
+      }
+      
+      if ((latestSubscription as any).ended_at) {
+        endedAt = new Date((latestSubscription as any).ended_at * 1000).toISOString();
+      }
+    } catch (error) {
+      console.error('Error getting latest subscription status:', error);
+    }
+    
+    // Return success response with detailed Stripe information for debugging
     return NextResponse.json({
       success: true,
-      message: 'Your subscription has been canceled and your plan has been changed to trial.',
-      subscription_status: 'canceled',
+      message: 'Your subscription has been successfully canceled. Your current plan will remain active until the end of your billing period.',
+      subscription_end_date: currentPeriodEnd ? currentPeriodEnd.toISOString() : null,
+      // Include Stripe-specific details for debugging
+      stripeSubscriptionId: stripeSubscriptionId,
+      stripeStatus: latestSubscriptionStatus,
+      stripeCanceledAt: canceledAt,
+      stripeEndedAt: endedAt,
       plan_type: 'trial', // Change to trial plan
       photos_limit: userUsage.photos_limit, // Keep the current photos limit
-      subscription_end_date: currentPeriodEnd ? currentPeriodEnd.toISOString() : null,
       updated_data: updatedData || null,
       debug_info: {
         timestamp: new Date().toISOString(),
