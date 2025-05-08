@@ -27,6 +27,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
+    // Initialize variables for Stripe customer and subscription
+    let stripeCustomerId: string | null = null;
+    let stripeSubscriptionId: string | null = requestSubscriptionId || null;
+    let stripeSubscriptions: any[] = [];
+    
+    // If subscription ID was provided in the request, validate and use it
+    if (stripeSubscriptionId) {
+      console.log(`Using Stripe subscription ID from request: ${stripeSubscriptionId}`);
+      
+      // Validate that the subscription ID has the correct format (starts with 'sub_')
+      if (!stripeSubscriptionId.startsWith('sub_')) {
+        console.warn(`Warning: Subscription ID ${stripeSubscriptionId} does not have the expected format (sub_*). Will try to use it anyway.`);
+      }
+      
+      // Try to verify the subscription exists in Stripe
+      try {
+        const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+        console.log(`Verified subscription exists in Stripe: ${subscription.id}, status: ${subscription.status}`);
+      } catch (verifyError) {
+        console.error(`Error verifying subscription ${stripeSubscriptionId}:`, verifyError);
+        // Continue anyway, we'll still try to use the ID
+      }
+    } else {
+      // Otherwise, try to find it
+      console.log('No subscription ID provided, attempting to find it...');
+    }
+
     // Get the user's plan information from the user_usage table
     const { data: userUsage, error: usageError } = await supabase
       .from('user_usage')
@@ -49,11 +76,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // First, try to get both the customer ID and subscription ID from our database
-    let stripeCustomerId: string | null = null;
-    let stripeSubscriptionId: string | null = requestSubscriptionId || null;
-    let stripeSubscriptions: any[] = [];
-    
+    // We already initialized these variables at the top of the function
     console.log('Looking for Stripe customer and subscription IDs for this user...');
     
     try {

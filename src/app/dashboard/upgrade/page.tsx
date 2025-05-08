@@ -186,9 +186,11 @@ export default function UpgradePage() {
       
       // First, try to get the user's subscription status to get the Stripe subscription ID
       let stripeSubscriptionId = null;
+      
+      // Step 1: Try to get the subscription ID from the stripe_customers table
       try {
-        addDebugLog('Fetching current subscription status from Stripe...');
-        const statusResponse = await fetch('/api/subscription-status', {
+        addDebugLog('Fetching subscription ID from stripe_customers table...');
+        const customerResponse = await fetch('/api/get-stripe-customer', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -196,25 +198,55 @@ export default function UpgradePage() {
           body: JSON.stringify({ userId: user.id }),
         });
         
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          addDebugLog('Current subscription status', statusData);
+        if (customerResponse.ok) {
+          const customerData = await customerResponse.json();
+          addDebugLog('Customer data from database', customerData);
           
-          if (statusData.stripeSubscriptionId) {
-            stripeSubscriptionId = statusData.stripeSubscriptionId;
-            addDebugLog('Found Stripe subscription ID', { stripeSubscriptionId });
-          } else if (statusData.stripeSubscriptions && statusData.stripeSubscriptions.length > 0) {
-            // If the subscription ID isn't directly available, get it from the subscriptions array
-            stripeSubscriptionId = statusData.stripeSubscriptions[0].id;
-            addDebugLog('Found Stripe subscription ID from subscriptions array', { stripeSubscriptionId });
+          if (customerData.subscription_id) {
+            stripeSubscriptionId = customerData.subscription_id;
+            addDebugLog('Found Stripe subscription ID in database', { stripeSubscriptionId });
           } else {
-            addDebugLog('No Stripe subscription ID found in response');
+            addDebugLog('No subscription ID found in database');
           }
         } else {
-          addDebugLog('Failed to fetch subscription status', { status: statusResponse.status });
+          addDebugLog('Failed to fetch customer data', { status: customerResponse.status });
         }
-      } catch (statusError) {
-        addDebugLog('Error fetching subscription status', statusError);
+      } catch (customerError) {
+        addDebugLog('Error fetching customer data', customerError);
+      }
+      
+      // Step 2: If not found in database, try the subscription-status endpoint
+      if (!stripeSubscriptionId) {
+        try {
+          addDebugLog('Fetching current subscription status from Stripe...');
+          const statusResponse = await fetch('/api/subscription-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId: user.id }),
+          });
+          
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            addDebugLog('Current subscription status', statusData);
+            
+            if (statusData.stripeSubscriptionId) {
+              stripeSubscriptionId = statusData.stripeSubscriptionId;
+              addDebugLog('Found Stripe subscription ID from status endpoint', { stripeSubscriptionId });
+            } else if (statusData.stripeSubscriptions && statusData.stripeSubscriptions.length > 0) {
+              // If the subscription ID isn't directly available, get it from the subscriptions array
+              stripeSubscriptionId = statusData.stripeSubscriptions[0].id;
+              addDebugLog('Found Stripe subscription ID from subscriptions array', { stripeSubscriptionId });
+            } else {
+              addDebugLog('No Stripe subscription ID found in response');
+            }
+          } else {
+            addDebugLog('Failed to fetch subscription status', { status: statusResponse.status });
+          }
+        } catch (statusError) {
+          addDebugLog('Error fetching subscription status', statusError);
+        }
       }
       
       // Call the API to cancel the subscription
