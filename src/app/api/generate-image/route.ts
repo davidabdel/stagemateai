@@ -67,9 +67,10 @@ export async function POST(request: NextRequest) {
       // Build the prompt exactly as requested
       const prompt = `Create an image and turn the attached image into a real-estate ready image, make it more inviting. Do Not change any fixed building items such as walls, windows and doors. 
 
-Keep the same aspect ratio.
  
 Do not change any colours of the actual house walls interior or exterior.
+
+The image size is 1536 x 1024
 
 This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes} style` : ''}.`;
       
