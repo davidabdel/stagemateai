@@ -30,8 +30,26 @@ export async function POST(request: Request) {
       );
     }
     
-    // Return the customer data
-    return NextResponse.json(customerData);
+    // Process the customer data to handle JSON strings
+    let processedData = { ...customerData };
+    
+    // Check if customer_id is a JSON string and extract the ID
+    if (processedData.customer_id && typeof processedData.customer_id === 'string') {
+      try {
+        // Try to parse it as JSON
+        const customerObj = JSON.parse(processedData.customer_id);
+        if (customerObj && customerObj.id) {
+          console.log(`Extracted customer ID ${customerObj.id} from JSON string`);
+          processedData.customer_id = customerObj.id;
+        }
+      } catch (e) {
+        // If it's not valid JSON, keep it as is
+        console.log('Customer ID is not a JSON string, using as is');
+      }
+    }
+    
+    // Return the processed data
+    return NextResponse.json(processedData);
     
   } catch (error) {
     console.error('Error in get-stripe-customer API:', error);

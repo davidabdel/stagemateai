@@ -90,11 +90,29 @@ export async function POST(request: Request) {
       if (customerError) {
         console.error('Error finding Stripe customer in database:', customerError);
       } else if (customerData) {
-        if (customerData.customer_id) {
+        // Handle customer_id that might be stored as a JSON string
+        if (customerData.customer_id && typeof customerData.customer_id === 'string') {
+          try {
+            // Try to parse it as JSON
+            const customerObj = JSON.parse(customerData.customer_id);
+            if (customerObj && customerObj.id) {
+              console.log(`Extracted customer ID ${customerObj.id} from JSON string`);
+              stripeCustomerId = customerObj.id;
+            } else {
+              stripeCustomerId = customerData.customer_id;
+            }
+          } catch (e) {
+            // If it's not valid JSON, use it as is
+            stripeCustomerId = customerData.customer_id;
+            console.log('Customer ID is not a JSON string, using as is');
+          }
+        } else {
           stripeCustomerId = customerData.customer_id;
-          console.log(`Found Stripe customer ID in database: ${stripeCustomerId}`);
         }
         
+        console.log(`Found Stripe customer ID in database: ${stripeCustomerId}`);
+        
+        // Check if we also have a subscription ID stored
         if (customerData.subscription_id) {
           stripeSubscriptionId = customerData.subscription_id;
           console.log(`Found Stripe subscription ID in database: ${stripeSubscriptionId}`);
@@ -226,7 +244,7 @@ export async function POST(request: Request) {
         stripeCanceledAt: canceledAt || null,
         stripeEndedAt: endedAt || null,
         debug_info: {
-          timestamp: new Date().toISOString(),
+          timestamp: new Date().toISOString(), // This is safe as it's creating a current timestamp
           user_id: userId
         }
       });
@@ -241,17 +259,56 @@ export async function POST(request: Request) {
       console.log(`Retrieving subscription details for ID: ${stripeSubscriptionId}`);
       const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
       
-      // Get the current period end date before cancellation
-      currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
-      console.log(`Current subscription status: ${subscription.status}, Current period end: ${currentPeriodEnd}`);
-      
-      // Set initial status values
-      latestSubscriptionStatus = subscription.status;
-      if ((subscription as any).canceled_at) {
-        canceledAt = new Date((subscription as any).canceled_at * 1000).toISOString();
+      // Get the current period end date before cancellation with safe conversion
+      try {
+        if ((subscription as any).current_period_end) {
+          const timestamp = (subscription as any).current_period_end;
+          // Make sure it's a valid number before creating a Date
+          if (typeof timestamp === 'number') {
+            currentPeriodEnd = new Date(timestamp * 1000);
+            console.log(`Current subscription status: ${subscription.status}, Current period end: ${currentPeriodEnd}`);
+          } else {
+            console.error(`Invalid current_period_end timestamp: ${timestamp}`);
+            currentPeriodEnd = null;
+          }
+        } else {
+          console.log('No current_period_end found in subscription');
+          currentPeriodEnd = null;
+        }
+      } catch (dateError) {
+        console.error('Error converting current_period_end to Date:', dateError);
+        currentPeriodEnd = null;
       }
+      
+      // Set initial status values with safe date conversions
+      latestSubscriptionStatus = subscription.status;
+      
+      // Safely handle canceled_at date
+      if ((subscription as any).canceled_at) {
+        try {
+          const timestamp = (subscription as any).canceled_at;
+          if (typeof timestamp === 'number') {
+            canceledAt = new Date(timestamp * 1000).toISOString();
+          } else {
+            console.error(`Invalid canceled_at timestamp: ${timestamp}`);
+          }
+        } catch (dateError) {
+          console.error('Error converting canceled_at to Date:', dateError);
+        }
+      }
+      
+      // Safely handle ended_at date
       if ((subscription as any).ended_at) {
-        endedAt = new Date((subscription as any).ended_at * 1000).toISOString();
+        try {
+          const timestamp = (subscription as any).ended_at;
+          if (typeof timestamp === 'number') {
+            endedAt = new Date(timestamp * 1000).toISOString();
+          } else {
+            console.error(`Invalid ended_at timestamp: ${timestamp}`);
+          }
+        } catch (dateError) {
+          console.error('Error converting ended_at to Date:', dateError);
+        }
       }
       
       // Check if the subscription is already canceled
