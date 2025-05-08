@@ -25,7 +25,7 @@ export default function UpgradePage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [userCredits, setUserCredits] = useState<{ photos_limit: number; photos_used: number; plan_type: string; email?: string } | null>(null);
+  const [userCredits, setUserCredits] = useState<{ photos_limit: number; photos_used: number; plan_type: string; email?: string; subscription_status?: string; cancellation_date?: string } | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -169,8 +169,21 @@ export default function UpgradePage() {
       // Subscription cancelled successfully
       console.log('Subscription successfully marked for cancellation');
       
-      // Redirect to a confirmation page or show a success message
-      router.push('/dashboard?cancelled=true');
+      // Update the local state to reflect the cancellation
+      if (userCredits) {
+        setUserCredits({
+          ...userCredits,
+          subscription_status: 'canceled',
+          cancellation_date: new Date().toISOString()
+        });
+      }
+      
+      // Close the modal and show a success message
+      setShowCancelConfirm(false);
+      alert('Your subscription has been successfully canceled. Your credits will remain available until the end of your billing period.');
+      
+      // Refresh the page to update all UI elements
+      window.location.reload();
       
     } catch (error: any) {
       console.error('Error cancelling subscription:', error);
@@ -300,8 +313,8 @@ export default function UpgradePage() {
                       rounded-xl p-6 flex flex-col relative`}
                   >
                     {isCurrentPlan && (
-                      <div className="absolute top-0 right-0 bg-[#6ecfc9] text-white text-xs font-semibold px-3 py-1 rounded-bl-lg rounded-tr-lg">
-                        CURRENT PLAN
+                      <div className={`absolute top-0 right-0 ${userCredits?.subscription_status === 'canceled' ? 'bg-red-500' : 'bg-[#6ecfc9]'} text-white text-xs font-semibold px-3 py-1 rounded-bl-lg rounded-tr-lg`}>
+                        {userCredits?.subscription_status === 'canceled' ? 'CANCELED' : 'CURRENT PLAN'}
                       </div>
                     )}
                     {isFeatured && !isAgencyPlan && (

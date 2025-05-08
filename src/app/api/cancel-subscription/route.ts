@@ -103,7 +103,10 @@ export async function POST(request: Request) {
       
       return NextResponse.json({
         success: true,
-        message: 'Your plan has been downgraded to the trial plan',
+        message: 'Your subscription has been canceled',
+        subscription_status: 'canceled',
+        plan_type: userUsage.plan_type,
+        photos_limit: userUsage.photos_limit,
         test_mode: true
       });
     }
@@ -150,7 +153,10 @@ export async function POST(request: Request) {
     // Return success response
     return NextResponse.json({
       success: true,
-      message: 'Subscription will be cancelled at the end of the billing period',
+      message: 'Your subscription has been canceled',
+      subscription_status: 'canceled',
+      plan_type: userUsage.plan_type,
+      photos_limit: userUsage.photos_limit,
       subscription_end_date: new Date().toISOString(), // Use current date as fallback
     });
   } catch (error: any) {

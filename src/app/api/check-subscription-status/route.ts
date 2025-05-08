@@ -79,7 +79,7 @@ async function checkSubscriptionStatus(userId: string) {
     // If subscriptions table doesn't exist, check user_usage table
     const { data: userData, error: userError } = await supabase
       .from('user_usage')
-      .select('subscription_status, plan_type, photos_limit, photos_used')
+      .select('*')
       .eq('user_id', userId)
       .single();
     
@@ -88,14 +88,35 @@ async function checkSubscriptionStatus(userId: string) {
       return { error: 'Failed to check user status', status: 500 };
     }
     
+    // Check if cancellation_date exists and is in the past
+    if (userData.cancellation_date) {
+      const cancellationDate = new Date(userData.cancellation_date);
+      const currentDate = new Date();
+      
+      if (cancellationDate < currentDate && userData.plan_type !== 'free' && userData.plan_type !== 'trial') {
+        // Update user to show canceled status
+        const { error: updateError } = await supabase
+          .from('user_usage')
+          .update({
+            subscription_status: 'canceled'
+          })
+          .eq('user_id', userId);
+          
+        if (updateError) {
+          console.error('Error updating subscription status:', updateError);
+        }
+      }
+    }
+    
     // No action needed, just return the current status
     return { 
       data: { 
         status: 'checked',
-        subscription_status: userData.subscription_status,
+        subscription_status: userData.subscription_status || 'active',
         plan_type: userData.plan_type,
         photos_limit: userData.photos_limit,
-        photos_used: userData.photos_used
+        photos_used: userData.photos_used,
+        cancellation_date: userData.cancellation_date
       },
       status: 200
     };
