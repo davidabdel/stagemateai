@@ -106,7 +106,8 @@ export async function POST(req: NextRequest) {
           .upsert([{
             user_id: userId,
             customer_id: customerId,
-            email: userEmail
+            email: userEmail,
+            subscription_id: session.subscription?.toString() || null // Store the subscription ID if available
           }]);
           
         if (customerError) {

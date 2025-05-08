@@ -277,6 +277,22 @@ async function handleSubscriptionCreated(customerId: string, subscriptionId: str
     // Update user credits based on the subscription plan
     await updateUserCreditsForPlan(userId, priceId);
     
+    // Update the subscription_id in the stripe_customers table
+    try {
+      const { error: updateError } = await supabase
+        .from('stripe_customers')
+        .update({ subscription_id: subscriptionId })
+        .eq('customer_id', customerId);
+      
+      if (updateError) {
+        console.error('Error updating subscription ID in stripe_customers:', updateError);
+      } else {
+        console.log(`Updated subscription ID ${subscriptionId} for customer ${customerId} in stripe_customers table`);
+      }
+    } catch (error) {
+      console.error('Error updating stripe_customers with subscription ID:', error);
+    }
+    
     console.log(`Successfully processed subscription ${subscriptionId} for user ${userId}`);
   } catch (error) {
     console.error('Error handling subscription created:', error);
