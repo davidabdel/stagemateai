@@ -143,10 +143,49 @@ export default function UpgradePage() {
     setIsCancelling(true);
     setCancelError(null);
     
+    // Create a debug element to show detailed logs on the page
+    const debugContainer = document.createElement('div');
+    debugContainer.id = 'subscription-debug';
+    debugContainer.style.position = 'fixed';
+    debugContainer.style.top = '10px';
+    debugContainer.style.right = '10px';
+    debugContainer.style.width = '400px';
+    debugContainer.style.maxHeight = '80vh';
+    debugContainer.style.overflowY = 'auto';
+    debugContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    debugContainer.style.color = 'white';
+    debugContainer.style.padding = '10px';
+    debugContainer.style.borderRadius = '5px';
+    debugContainer.style.zIndex = '9999';
+    debugContainer.style.fontFamily = 'monospace';
+    debugContainer.style.fontSize = '12px';
+    debugContainer.innerHTML = '<h3>Subscription Cancellation Debug</h3>';
+    document.body.appendChild(debugContainer);
+    
+    const addDebugLog = (message: string, data?: any) => {
+      const logEntry = document.createElement('div');
+      logEntry.style.borderBottom = '1px solid #333';
+      logEntry.style.paddingBottom = '5px';
+      logEntry.style.marginBottom = '5px';
+      
+      const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+      logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+      
+      if (data) {
+        const dataStr = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+        logEntry.innerHTML += `<pre>${dataStr}</pre>`;
+      }
+      
+      debugContainer.appendChild(logEntry);
+      console.log(`[${timestamp}] ${message}`, data || '');
+    };
+    
     try {
-      console.log('Canceling subscription for user:', user.id);
+      addDebugLog('Starting subscription cancellation', { userId: user.id });
+      addDebugLog('Current user credits state', userCredits);
       
       // Call the API to cancel the subscription
+      addDebugLog('Sending cancellation request to API...');
       const response = await fetch('/api/cancel-subscription', {
         method: 'POST',
         headers: {
@@ -157,42 +196,105 @@ export default function UpgradePage() {
         }),
       });
       
+      addDebugLog('Received response from API', { 
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries([...response.headers.entries()])
+      });
+      
       // Get the response data regardless of status
       const responseData = await response.json();
-      console.log('Cancel subscription response:', responseData);
+      addDebugLog('Response data', responseData);
       
       if (!response.ok) {
         // If the API returned an error message, use it
+        addDebugLog('API returned error', { status: response.status, error: responseData.error });
         throw new Error(responseData.error || 'Failed to cancel subscription');
       }
       
       // Subscription cancelled successfully
-      console.log('Subscription successfully marked for cancellation');
+      addDebugLog('Subscription successfully marked for cancellation');
       
       // Update the local state to reflect the cancellation with the data from the API response
       if (userCredits) {
-        setUserCredits({
+        const updatedCredits = {
           ...userCredits,
           subscription_status: 'canceled',
           cancellation_date: new Date().toISOString(),
           subscription_end_date: responseData.subscription_end_date || null
-        });
+        };
+        addDebugLog('Updating local user credits state', updatedCredits);
+        setUserCredits(updatedCredits);
+      } else {
+        addDebugLog('No userCredits available to update');
       }
       
       // Close the modal and show a success message
+      addDebugLog('Closing modal and showing success message');
       setShowCancelConfirm(false);
+      
+      // Add a debug message with Stripe-specific information
+      addDebugLog('Stripe cancellation details', {
+        stripeSubscriptionId: responseData.stripeSubscriptionId || 'Not provided',
+        stripeStatus: responseData.stripeStatus || 'Not provided',
+        stripeCanceledAt: responseData.stripeCanceledAt || 'Not provided'
+      });
+      
       alert(responseData.message || 'Your subscription has been successfully canceled. Your current plan will remain active until the end of your billing period.');
       
       // Refresh user data instead of reloading the page
+      addDebugLog('Refreshing user data...');
       if (user) {
         await fetchUserCredits(user.id);
       }
       
-    } catch (error: any) {
-      console.error('Error cancelling subscription:', error);
-      setCancelError(error.message || 'Failed to cancel subscription. Please try again.');
+    } catch (error) {
+      console.error('Error canceling subscription:', error);
+      addDebugLog('Error canceling subscription', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
+      
+      // Try to fetch the current subscription status from Stripe
+      try {
+        addDebugLog('Attempting to fetch current subscription status...');
+        const statusResponse = await fetch('/api/subscription-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId: user.id }),
+        });
+        
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          addDebugLog('Current subscription status', statusData);
+        } else {
+          addDebugLog('Failed to fetch subscription status', { status: statusResponse.status });
+        }
+      } catch (statusError) {
+        addDebugLog('Error fetching subscription status', {
+          error: statusError instanceof Error ? statusError.message : 'Unknown error'
+        });
+      }
+      
+      setCancelError(error instanceof Error ? error.message : 'An unexpected error occurred');
     } finally {
       setIsCancelling(false);
+      addDebugLog('Cancellation process completed');
+      
+      // Keep the debug panel visible for 5 minutes then remove it
+      setTimeout(() => {
+        const debugElement = document.getElementById('subscription-debug');
+        if (debugElement) {
+          addDebugLog('Debug panel will be removed in 10 seconds...');
+          setTimeout(() => {
+            if (debugElement.parentNode) {
+              debugElement.parentNode.removeChild(debugElement);
+            }
+          }, 10000);
+        }
+      }, 300000); // 5 minutes
     }
   };
 
