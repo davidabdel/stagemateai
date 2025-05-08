@@ -370,10 +370,11 @@ async function handleSubscriptionMarkedForCancellation(customerId: string, subsc
       console.error('Error updating subscription status in consolidated_users:', consolidatedError);
     }
     
-    // Update user_usage with cancellation info but keep the plan active
+    // Update user_usage with cancellation info and change plan to trial
     const { error: usageError } = await supabase
       .from('user_usage')
       .update({
+        plan_type: 'trial',
         subscription_status: 'canceled',
         cancellation_date: new Date().toISOString(),
         subscription_end_date: currentPeriodEnd.toISOString(),
@@ -671,6 +672,7 @@ async function handleSubscriptionCancelled(customerId: string, subscriptionId: s
     const { error: usageError } = await supabase
       .from('user_usage')
       .update({
+        plan_type: 'trial',
         subscription_status: 'canceled',
         updated_at: new Date().toISOString()
       })

@@ -86,6 +86,7 @@ export async function POST(request: Request) {
       try {
         // Only update the subscription status, not the plan type
         console.log('Attempting to update user_usage table with the following data:', {
+          plan_type: 'trial',
           subscription_status: 'canceled',
           cancellation_date: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -95,6 +96,7 @@ export async function POST(request: Request) {
         const { data: updateResult, error: updateError } = await supabase
           .from('user_usage')
           .update({ 
+            plan_type: 'trial',
             subscription_status: 'canceled',
             cancellation_date: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -120,9 +122,9 @@ export async function POST(request: Request) {
       
       return NextResponse.json({
         success: true,
-        message: 'Your subscription has been canceled. Your current plan will remain active until the end of your billing period.',
+        message: 'Your subscription has been canceled and your plan has been changed to trial.',
         subscription_status: 'canceled',
-        plan_type: userUsage.plan_type, // Keep the current plan type
+        plan_type: 'trial', // Change to trial plan
         photos_limit: userUsage.photos_limit, // Keep the current photos limit
         test_mode: true,
         updated_data: updatedData || null,
@@ -157,6 +159,7 @@ export async function POST(request: Request) {
     // Mark as canceled but preserve existing plan type and credits until the period ends
     try {
       console.log('Attempting to update user_usage table after Stripe cancellation with the following data:', {
+        plan_type: 'trial',
         subscription_status: 'canceled',
         cancellation_date: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -167,6 +170,7 @@ export async function POST(request: Request) {
       const { data: updateResult, error: updateError } = await supabase
         .from('user_usage')
         .update({ 
+          plan_type: 'trial',
           subscription_status: 'canceled',
           cancellation_date: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -194,11 +198,9 @@ export async function POST(request: Request) {
     // Return success response
     return NextResponse.json({
       success: true,
-      message: currentPeriodEnd 
-        ? `Your subscription has been canceled. Your current plan will remain active until ${currentPeriodEnd.toLocaleDateString()}.` 
-        : 'Your subscription has been canceled.',
+      message: 'Your subscription has been canceled and your plan has been changed to trial.',
       subscription_status: 'canceled',
-      plan_type: userUsage.plan_type, // Keep the current plan type
+      plan_type: 'trial', // Change to trial plan
       photos_limit: userUsage.photos_limit, // Keep the current photos limit
       subscription_end_date: currentPeriodEnd ? currentPeriodEnd.toISOString() : null,
       updated_data: updatedData || null,
