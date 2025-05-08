@@ -141,7 +141,7 @@ export async function POST(request: Request) {
       });
     }
     
-    // If we found a Stripe subscription, cancel it immediately using the recommended API
+    // If we found a Stripe subscription, cancel it immediately using the direct Stripe API
     let currentPeriodEnd: Date | null = null;
     try {
       // First, retrieve the subscription to get its details
@@ -150,11 +150,9 @@ export async function POST(request: Request) {
       // Get the current period end date before cancellation
       currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
       
-      // Cancel the subscription immediately
-      const canceledSubscription = await stripe.subscriptions.cancel(stripeSubscriptionId, {
-        invoice_now: true, // Generate a final invoice for any usage or proration
-        prorate: true      // Prorate the unused portion
-      });
+      // Cancel the subscription immediately using the direct API call
+      // This is the most reliable method to ensure the subscription is canceled in Stripe
+      const canceledSubscription = await stripe.subscriptions.cancel(stripeSubscriptionId);
       
       console.log('Successfully canceled Stripe subscription:', canceledSubscription.id, 
                  'Status:', canceledSubscription.status,

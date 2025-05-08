@@ -95,11 +95,8 @@ async function cancelSubscription(userId, subscriptionId = null) {
       try {
         console.log(`Canceling subscription ${subscriptionId} in Stripe...`);
         
-        // Cancel the subscription immediately
-        const canceledSubscription = await stripe.subscriptions.cancel(subscriptionId, {
-          invoice_now: true, // Generate a final invoice for any usage or proration
-          prorate: true      // Prorate the unused portion
-        });
+        // Cancel the subscription immediately using the direct API call
+        const canceledSubscription = await stripe.subscriptions.cancel(subscriptionId);
         
         console.log('Subscription canceled successfully:', canceledSubscription.status);
         console.log('Canceled at:', new Date(canceledSubscription.canceled_at * 1000).toISOString());
