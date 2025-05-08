@@ -66,12 +66,28 @@ export default function Dashboard() {
       fetchUserCredits(user.id);
     }
     
-    // Function to ensure user records exist in the database using the API endpoint
+    // Function to ensure consolidated_users record exists in the database
+    // We skip creating user_usage records due to the foreign key constraint
     async function ensureUserRecordsExist(userId: string, email: string) {
       try {
-        console.log('Dashboard: Ensuring user records exist for userId:', userId);
+        console.log('Dashboard: Ensuring consolidated_users record exists for userId:', userId);
         
-        // Call the API endpoint to create user records if they don't exist
+        // First check if the user already has a record in consolidated_users
+        // This is important to avoid duplicate creation attempts
+        const { data: existingUser, error: checkError } = await supabase
+          .from('consolidated_users')
+          .select('user_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+          
+        if (existingUser) {
+          console.log('Dashboard: User record already exists in consolidated_users, skipping creation');
+          return;
+        }
+        
+        console.log('Dashboard: Consolidated user record not found, attempting to create via API');
+        
+        // Call the API endpoint to create consolidated_users record
         const response = await fetch('/api/create-user-records', {
           method: 'POST',
           headers: {
@@ -84,14 +100,21 @@ export default function Dashboard() {
         });
         
         if (!response.ok) {
-          console.error('Dashboard: API response not OK when ensuring user records exist:', response.statusText);
+          const errorText = await response.text();
+          console.error(`Dashboard: API error ${response.status}: ${errorText}`);
           return;
         }
         
         const result = await response.json();
-        console.log('Dashboard: User records check API result:', result);
+        console.log('Dashboard: User record creation API result:', result);
+        
+        if (result.success) {
+          console.log('Dashboard: Successfully created consolidated_users record');
+        } else {
+          console.error('Dashboard: Failed to create consolidated_users record:', result.error);
+        }
       } catch (error) {
-        console.error('Dashboard: Error ensuring user records exist:', error);
+        console.error('Dashboard: Error ensuring consolidated_users record exists:', error);
         // Continue even if there's an error - this is just a safety measure
       }
     }
@@ -101,13 +124,12 @@ export default function Dashboard() {
       try {
         console.log('Dashboard: Checking subscription status for userId:', userId);
         
-        // Call the API endpoint to check subscription status
-        const response = await fetch('/api/check-subscription-status', {
-          method: 'POST',
+        // Call the API endpoint to check subscription status using GET method
+        const response = await fetch(`/api/check-subscription-status?userId=${encodeURIComponent(userId)}`, {
+          method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ userId }),
         });
         
         if (!response.ok) {

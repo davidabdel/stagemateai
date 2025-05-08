@@ -83,6 +83,7 @@ export async function POST(request: Request) {
           .from('user_usage')
           .update({ 
             // NOT changing plan_type to preserve existing plan until end of billing cycle
+            subscription_status: 'canceled',
             cancellation_date: new Date().toISOString(),
             updated_at: new Date().toISOString()
             // Intentionally NOT updating photos_limit to preserve existing credits
@@ -127,6 +128,7 @@ export async function POST(request: Request) {
       const { error: updateError } = await supabase
         .from('user_usage')
         .update({ 
+          subscription_status: 'canceled',
           cancellation_date: new Date().toISOString(),
           updated_at: new Date().toISOString()
           // Intentionally NOT updating photos_limit or plan_type yet
