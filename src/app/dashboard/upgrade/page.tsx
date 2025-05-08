@@ -203,6 +203,12 @@ export default function UpgradePage() {
           if (statusData.stripeSubscriptionId) {
             stripeSubscriptionId = statusData.stripeSubscriptionId;
             addDebugLog('Found Stripe subscription ID', { stripeSubscriptionId });
+          } else if (statusData.stripeSubscriptions && statusData.stripeSubscriptions.length > 0) {
+            // If the subscription ID isn't directly available, get it from the subscriptions array
+            stripeSubscriptionId = statusData.stripeSubscriptions[0].id;
+            addDebugLog('Found Stripe subscription ID from subscriptions array', { stripeSubscriptionId });
+          } else {
+            addDebugLog('No Stripe subscription ID found in response');
           }
         } else {
           addDebugLog('Failed to fetch subscription status', { status: statusResponse.status });
@@ -265,8 +271,41 @@ export default function UpgradePage() {
       addDebugLog('Stripe cancellation details', {
         stripeSubscriptionId: responseData.stripeSubscriptionId || 'Not provided',
         stripeStatus: responseData.stripeStatus || 'Not provided',
-        stripeCanceledAt: responseData.stripeCanceledAt || 'Not provided'
+        stripeCanceledAt: responseData.stripeCanceledAt || 'Not provided',
+        stripeEndedAt: responseData.stripeEndedAt || 'Not provided',
+        subscription_end_date: responseData.subscription_end_date || 'Not provided'
       });
+      
+      // If we didn't get Stripe details in the response, try to fetch them directly
+      if (!responseData.stripeSubscriptionId || responseData.stripeSubscriptionId === 'Not found') {
+        try {
+          addDebugLog('Fetching subscription status directly to verify cancellation...');
+          const verifyResponse = await fetch('/api/subscription-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId: user.id }),
+          });
+          
+          if (verifyResponse.ok) {
+            const verifyData = await verifyResponse.json();
+            addDebugLog('Verification subscription status', verifyData);
+            
+            if (verifyData.stripeSubscriptions && verifyData.stripeSubscriptions.length > 0) {
+              const sub = verifyData.stripeSubscriptions[0];
+              addDebugLog('Verified Stripe subscription status', {
+                id: sub.id,
+                status: sub.status,
+                canceled_at: sub.canceled_at,
+                cancel_at_period_end: sub.cancel_at_period_end
+              });
+            }
+          }
+        } catch (verifyError) {
+          addDebugLog('Error verifying cancellation status', verifyError);
+        }
+      }
       
       alert(responseData.message || 'Your subscription has been successfully canceled. Your current plan will remain active until the end of your billing period.');
       
