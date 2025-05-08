@@ -79,14 +79,15 @@ export async function POST(request: Request) {
       // Mark subscription as canceled but KEEP existing plan and credits
       // This preserves the user's access until the end of the billing period
       try {
+        // Immediately change the plan type to free
         const { error: updateError } = await supabase
           .from('user_usage')
           .update({ 
-            // NOT changing plan_type to preserve existing plan until end of billing cycle
+            plan_type: 'free',
             subscription_status: 'canceled',
             cancellation_date: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-            // Intentionally NOT updating photos_limit to preserve existing credits
+            updated_at: new Date().toISOString(),
+            photos_limit: 3 // Reset to free plan limit
           })
           .eq('user_id', userId);
         
@@ -103,10 +104,10 @@ export async function POST(request: Request) {
       
       return NextResponse.json({
         success: true,
-        message: 'Your subscription has been canceled',
+        message: 'Your subscription has been canceled and your plan has been changed to free',
         subscription_status: 'canceled',
-        plan_type: userUsage.plan_type,
-        photos_limit: userUsage.photos_limit,
+        plan_type: 'free',
+        photos_limit: 3,
         test_mode: true
       });
     }
@@ -131,11 +132,11 @@ export async function POST(request: Request) {
       const { error: updateError } = await supabase
         .from('user_usage')
         .update({ 
+          plan_type: 'free',
           subscription_status: 'canceled',
           cancellation_date: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-          // Intentionally NOT updating photos_limit or plan_type yet
-          // Credits will remain until the end of the billing period
+          updated_at: new Date().toISOString(),
+          photos_limit: 3 // Reset to free plan limit
         })
         .eq('user_id', userId);
         
@@ -153,10 +154,10 @@ export async function POST(request: Request) {
     // Return success response
     return NextResponse.json({
       success: true,
-      message: 'Your subscription has been canceled',
+      message: 'Your subscription has been canceled and your plan has been changed to free',
       subscription_status: 'canceled',
-      plan_type: userUsage.plan_type,
-      photos_limit: userUsage.photos_limit,
+      plan_type: 'free',
+      photos_limit: 3,
       subscription_end_date: new Date().toISOString(), // Use current date as fallback
     });
   } catch (error: any) {
