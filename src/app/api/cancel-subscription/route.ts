@@ -84,19 +84,25 @@ export async function POST(request: Request) {
       let updatedData: any = null;
       
       try {
-        // Only update the subscription status, not the plan type
-        console.log('Attempting to update user_usage table with the following data:', {
-          plan_type: 'trial',
-          subscription_status: 'canceled',
-          cancellation_date: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
+        // Directly update the plan_type to 'trial'
+        console.log('Updating user_usage table to set plan_type to trial for userId:', userId);
         
-        // Use select() to get the updated data back
+        // First, perform a direct update to change the plan type
+        const { error: directUpdateError } = await supabase
+          .from('user_usage')
+          .update({ plan_type: 'trial' })
+          .eq('user_id', userId);
+        
+        if (directUpdateError) {
+          console.error('Error updating plan_type to trial:', directUpdateError);
+        } else {
+          console.log('Successfully updated plan_type to trial');
+        }
+        
+        // Then update the other fields
         const { data: updateResult, error: updateError } = await supabase
           .from('user_usage')
           .update({ 
-            plan_type: 'trial',
             subscription_status: 'canceled',
             cancellation_date: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -158,19 +164,24 @@ export async function POST(request: Request) {
     // Update the user's subscription status in the database
     // Mark as canceled but preserve existing plan type and credits until the period ends
     try {
-      console.log('Attempting to update user_usage table after Stripe cancellation with the following data:', {
-        plan_type: 'trial',
-        subscription_status: 'canceled',
-        cancellation_date: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        subscription_end_date: currentPeriodEnd ? currentPeriodEnd.toISOString() : null
-      });
+      console.log('Updating user_usage table to set plan_type to trial for userId:', userId);
       
-      // Use select() to get the updated data back
+      // First, perform a direct update to change the plan type
+      const { error: directUpdateError } = await supabase
+        .from('user_usage')
+        .update({ plan_type: 'trial' })
+        .eq('user_id', userId);
+      
+      if (directUpdateError) {
+        console.error('Error updating plan_type to trial:', directUpdateError);
+      } else {
+        console.log('Successfully updated plan_type to trial');
+      }
+      
+      // Then update the other fields
       const { data: updateResult, error: updateError } = await supabase
         .from('user_usage')
         .update({ 
-          plan_type: 'trial',
           subscription_status: 'canceled',
           cancellation_date: new Date().toISOString(),
           updated_at: new Date().toISOString(),

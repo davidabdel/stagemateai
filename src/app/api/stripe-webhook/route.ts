@@ -370,11 +370,22 @@ async function handleSubscriptionMarkedForCancellation(customerId: string, subsc
       console.error('Error updating subscription status in consolidated_users:', consolidatedError);
     }
     
-    // Update user_usage with cancellation info and change plan to trial
+    // First, directly update plan_type to trial
+    const { error: planUpdateError } = await supabase
+      .from('user_usage')
+      .update({ plan_type: 'trial' })
+      .eq('user_id', userId);
+      
+    if (planUpdateError) {
+      console.error('Error updating plan_type to trial:', planUpdateError);
+    } else {
+      console.log(`Successfully updated plan_type to trial for user ${userId}`);
+    }
+    
+    // Then update other subscription fields
     const { error: usageError } = await supabase
       .from('user_usage')
       .update({
-        plan_type: 'trial',
         subscription_status: 'canceled',
         cancellation_date: new Date().toISOString(),
         subscription_end_date: currentPeriodEnd.toISOString(),
@@ -669,10 +680,22 @@ async function handleSubscriptionCancelled(customerId: string, subscriptionId: s
       console.error('Error updating subscription status in consolidated_users:', consolidatedError);
     }
     
+    // First, directly update plan_type to trial
+    const { error: planUpdateError } = await supabase
+      .from('user_usage')
+      .update({ plan_type: 'trial' })
+      .eq('user_id', userId);
+      
+    if (planUpdateError) {
+      console.error('Error updating plan_type to trial:', planUpdateError);
+    } else {
+      console.log(`Successfully updated plan_type to trial for user ${userId}`);
+    }
+    
+    // Then update other subscription fields
     const { error: usageError } = await supabase
       .from('user_usage')
       .update({
-        plan_type: 'trial',
         subscription_status: 'canceled',
         updated_at: new Date().toISOString()
       })
