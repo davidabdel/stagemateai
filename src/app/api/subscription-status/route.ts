@@ -106,9 +106,22 @@ export async function POST(request: Request) {
       .order('created_at', { ascending: false })
       .limit(5);
     
+    // Find the active subscription ID for easier access in the frontend
+    let stripeSubscriptionId = null;
+    
+    // First look for active subscriptions
+    const activeSubscription = stripeSubscriptions.find(sub => sub.status === 'active');
+    if (activeSubscription) {
+      stripeSubscriptionId = activeSubscription.id;
+    } else if (stripeSubscriptions.length > 0) {
+      // If no active subscription, use the most recent one
+      stripeSubscriptionId = stripeSubscriptions[0].id;
+    }
+    
     return NextResponse.json({
       user: userData,
       stripeCustomerId,
+      stripeSubscriptionId, // Add this field for easier access
       stripeSubscriptions,
       databaseSubscriptions: subscriptionError ? [] : subscriptionData
     });

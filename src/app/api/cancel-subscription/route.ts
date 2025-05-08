@@ -8,6 +8,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 });
 
 export async function POST(request: Request) {
+  // Variables to track subscription status for the response
+  let latestSubscriptionStatus = 'unknown';
+  let canceledAt: string | null = null;
+  let endedAt: string | null = null;
+  
   try {
     // Parse the request body
     const { userId, stripeSubscriptionId: requestSubscriptionId } = await request.json();
@@ -187,16 +192,23 @@ export async function POST(request: Request) {
         success: true,
         message: 'Your subscription has been canceled and your plan has been changed to trial.',
         subscription_status: 'canceled',
-        plan_type: 'trial', // Change to trial plan
-        photos_limit: userUsage.photos_limit, // Keep the current photos limit
-        test_mode: true,
+        plan_type: 'trial',
+        photos_limit: userUsage.photos_limit,
+        test_mode: process.env.NODE_ENV !== 'production',
         updated_data: updatedData || null,
+        // Include Stripe-specific details for debugging
+        stripeSubscriptionId: stripeSubscriptionId || 'Not found',
+        stripeStatus: latestSubscriptionStatus || 'Unknown',
+        stripeCanceledAt: canceledAt || null,
+        stripeEndedAt: endedAt || null,
         debug_info: {
           timestamp: new Date().toISOString(),
           user_id: userId
         }
       });
     }
+    
+    // We already have variables to track subscription status at the top of the function
     
     // If we found a Stripe subscription, cancel it immediately using the direct Stripe API
     let currentPeriodEnd: Date | null = null;
@@ -209,6 +221,15 @@ export async function POST(request: Request) {
       currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
       console.log(`Current subscription status: ${subscription.status}, Current period end: ${currentPeriodEnd}`);
       
+      // Set initial status values
+      latestSubscriptionStatus = subscription.status;
+      if ((subscription as any).canceled_at) {
+        canceledAt = new Date((subscription as any).canceled_at * 1000).toISOString();
+      }
+      if ((subscription as any).ended_at) {
+        endedAt = new Date((subscription as any).ended_at * 1000).toISOString();
+      }
+      
       // Check if the subscription is already canceled
       if (subscription.status === 'canceled') {
         console.log(`Subscription ${stripeSubscriptionId} is already canceled`);
@@ -220,6 +241,15 @@ export async function POST(request: Request) {
         // Cancel the subscription immediately using the direct API call
         // This is the most reliable method to ensure the subscription is canceled in Stripe
         const canceledSubscription = await stripe.subscriptions.cancel(stripeSubscriptionId);
+        
+        // Update status variables after cancellation
+        latestSubscriptionStatus = canceledSubscription.status;
+        if ((canceledSubscription as any).canceled_at) {
+          canceledAt = new Date((canceledSubscription as any).canceled_at * 1000).toISOString();
+        }
+        if ((canceledSubscription as any).ended_at) {
+          endedAt = new Date((canceledSubscription as any).ended_at * 1000).toISOString();
+        }
         
         // Verify the cancellation was successful
         if (canceledSubscription.status === 'canceled') {
@@ -294,11 +324,7 @@ export async function POST(request: Request) {
       console.log('Continuing despite exception to ensure UI shows success');
     }
 
-    // Get the latest subscription status for debugging
-    let latestSubscriptionStatus = 'unknown';
-    let canceledAt = null;
-    let endedAt = null;
-    
+    // Get the latest subscription status for debugging one more time
     try {
       // Try to get the latest subscription status
       const latestSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
