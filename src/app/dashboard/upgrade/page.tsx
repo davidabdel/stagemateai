@@ -184,6 +184,33 @@ export default function UpgradePage() {
       addDebugLog('Starting subscription cancellation', { userId: user.id });
       addDebugLog('Current user credits state', userCredits);
       
+      // First, try to get the user's subscription status to get the Stripe subscription ID
+      let stripeSubscriptionId = null;
+      try {
+        addDebugLog('Fetching current subscription status from Stripe...');
+        const statusResponse = await fetch('/api/subscription-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId: user.id }),
+        });
+        
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          addDebugLog('Current subscription status', statusData);
+          
+          if (statusData.stripeSubscriptionId) {
+            stripeSubscriptionId = statusData.stripeSubscriptionId;
+            addDebugLog('Found Stripe subscription ID', { stripeSubscriptionId });
+          }
+        } else {
+          addDebugLog('Failed to fetch subscription status', { status: statusResponse.status });
+        }
+      } catch (statusError) {
+        addDebugLog('Error fetching subscription status', statusError);
+      }
+      
       // Call the API to cancel the subscription
       addDebugLog('Sending cancellation request to API...');
       const response = await fetch('/api/cancel-subscription', {
@@ -192,7 +219,8 @@ export default function UpgradePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          userId: user.id 
+          userId: user.id,
+          stripeSubscriptionId: stripeSubscriptionId
         }),
       });
       

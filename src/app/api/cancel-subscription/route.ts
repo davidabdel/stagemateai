@@ -10,8 +10,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 export async function POST(request: Request) {
   try {
     // Parse the request body
-    const { userId } = await request.json();
+    const { userId, stripeSubscriptionId: requestSubscriptionId } = await request.json();
     console.log('Cancel subscription request received for userId:', userId);
+    
+    if (requestSubscriptionId) {
+      console.log('Stripe subscription ID provided in request:', requestSubscriptionId);
+    }
 
     if (!userId) {
       console.log('Error: User ID is required');
@@ -40,44 +44,97 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get the customer ID from Stripe customers using the user's ID or email
-    let stripeCustomerId;
-    let stripeSubscriptionId;
+    // Get the subscription ID from the request or find it using the user's ID
+    let stripeCustomerId: string | null = null;
+    let stripeSubscriptionId: string | null = requestSubscriptionId || null;
     
-    try {
-      // Get all customers and filter by metadata
-      const customers = await stripe.customers.list({
-        limit: 100,
-        expand: ['data.subscriptions']
-      });
+    // If subscription ID was provided in the request, use it directly
+    if (stripeSubscriptionId) {
+      console.log(`Using Stripe subscription ID from request: ${stripeSubscriptionId}`);
+    } else {
+      // Otherwise, try to find it
+      console.log('No subscription ID provided, attempting to find it...');
       
-      // Filter customers with the matching user_id in metadata
-      const matchingCustomers = customers.data.filter(customer => 
-        customer.metadata && customer.metadata.user_id === userId
-      );
-      
-      if (matchingCustomers.length > 0) {
-        stripeCustomerId = matchingCustomers[0].id;
+      try {
+        // Check if the user has a Stripe customer ID in our database
+        const { data: customerData, error: customerError } = await supabase
+          .from('stripe_customers')
+          .select('customer_id')
+          .eq('user_id', userId)
+          .single();
         
-        // Get the customer's active subscriptions
-        const subscriptions = await stripe.subscriptions.list({
-          customer: stripeCustomerId,
-          status: 'active',
-          limit: 1,
-        });
-        
-        if (subscriptions.data.length > 0) {
-          stripeSubscriptionId = subscriptions.data[0].id;
+        if (customerError) {
+          console.error('Error finding Stripe customer in database:', customerError);
+          
+          // If not found in database, try to find by email
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('email')
+            .eq('id', userId)
+            .single();
+          
+          if (!userError && userData && userData.email) {
+            console.log(`Searching for Stripe customer by email: ${userData.email}`);
+            
+            // Search for customers by email
+            const customers = await stripe.customers.list({
+              email: userData.email,
+              limit: 1
+            });
+            
+            if (customers.data.length > 0) {
+              stripeCustomerId = customers.data[0].id;
+              console.log(`Found Stripe customer by email: ${stripeCustomerId}`);
+            }
+          }
+        } else if (customerData && customerData.customer_id) {
+          stripeCustomerId = customerData.customer_id;
+          console.log(`Found Stripe customer from database: ${stripeCustomerId}`);
         }
+        
+        // If we found a customer ID, look for subscriptions
+        if (stripeCustomerId) {
+          console.log(`Searching for subscriptions for customer: ${stripeCustomerId}`);
+          
+          // First try to find active subscriptions
+          const activeSubscriptions = await stripe.subscriptions.list({
+            customer: stripeCustomerId,
+            status: 'active',
+            limit: 5
+          });
+          
+          if (activeSubscriptions.data.length > 0) {
+            stripeSubscriptionId = activeSubscriptions.data[0].id;
+            console.log(`Found active Stripe subscription: ${stripeSubscriptionId}`);
+          } else {
+            // If no active subscriptions, check for any subscriptions
+            const allSubscriptions = await stripe.subscriptions.list({
+              customer: stripeCustomerId,
+              limit: 5
+            });
+            
+            if (allSubscriptions.data.length > 0) {
+              // Sort by created date to get the most recent one
+              allSubscriptions.data.sort((a, b) => 
+                (b.created as number) - (a.created as number)
+              );
+              
+              stripeSubscriptionId = allSubscriptions.data[0].id;
+              console.log(`Found Stripe subscription (status: ${allSubscriptions.data[0].status}): ${stripeSubscriptionId}`);
+            } else {
+              console.log('No Stripe subscriptions found for this user');
+            }
+          }
+        }
+      } catch (stripeError) {
+        console.error('Error finding Stripe subscription:', stripeError);
       }
-    } catch (error) {
-      console.error('Error finding Stripe customer:', error);
     }
-    
+
     if (!stripeSubscriptionId) {
       // For testing purposes, allow downgrading without a Stripe subscription
       console.log('No Stripe subscription found, but proceeding with plan downgrade');
-      
+
       // Mark subscription as canceled but KEEP existing plan and credits
       // This preserves the user's access until the end of the billing period
       // Declare updatedData at a higher scope so it's available for the response
