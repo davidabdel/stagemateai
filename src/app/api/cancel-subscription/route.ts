@@ -141,19 +141,26 @@ export async function POST(request: Request) {
       });
     }
     
-    // If we found a Stripe subscription, cancel it
+    // If we found a Stripe subscription, cancel it immediately using the recommended API
     let currentPeriodEnd: Date | null = null;
     try {
-      const subscription = await stripe.subscriptions.update(
-        stripeSubscriptionId,
-        { cancel_at_period_end: true }
-      );
+      // First, retrieve the subscription to get its details
+      const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
       
-      // Get the current period end date
+      // Get the current period end date before cancellation
       currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
-      console.log('Successfully updated Stripe subscription to cancel at period end:', subscription.id, 'Period ends:', currentPeriodEnd.toISOString());
+      
+      // Cancel the subscription immediately
+      const canceledSubscription = await stripe.subscriptions.cancel(stripeSubscriptionId, {
+        invoice_now: true, // Generate a final invoice for any usage or proration
+        prorate: true      // Prorate the unused portion
+      });
+      
+      console.log('Successfully canceled Stripe subscription:', canceledSubscription.id, 
+                 'Status:', canceledSubscription.status,
+                 'Canceled at:', new Date((canceledSubscription as any).canceled_at * 1000).toISOString());
     } catch (stripeError) {
-      console.error('Error updating Stripe subscription:', stripeError);
+      console.error('Error canceling Stripe subscription:', stripeError);
       // Continue anyway - we'll still mark the subscription as canceled in our database
       console.log('Continuing despite Stripe error to ensure UI shows success');
     }

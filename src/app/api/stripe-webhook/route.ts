@@ -113,10 +113,59 @@ export async function POST(req: NextRequest) {
       
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
-        console.log('Subscription deleted:', subscription.id);
+        console.log(`Subscription deleted:`, subscription.id);
         
         if (subscription.customer) {
           await handleSubscriptionCancelled(subscription.customer.toString(), subscription.id);
+        }
+        break;
+      }
+      
+      // Handle subscription canceled events
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        const previousAttributes = event.data.previous_attributes as any;
+        console.log(`Subscription updated:`, subscription.id);
+        
+        // Check if this update is a cancellation
+        if (subscription.status === 'canceled' && 
+            previousAttributes && 
+            previousAttributes.status && 
+            previousAttributes.status !== 'canceled') {
+          console.log('Subscription canceled:', subscription.id);
+          
+          if (subscription.customer) {
+            // Handle this as a cancellation
+            await handleSubscriptionCancelled(subscription.customer.toString(), subscription.id);
+            break;
+          }
+        }
+        
+        // Check if this update is setting cancel_at_period_end to true
+        if (subscription.cancel_at_period_end && 
+            previousAttributes && 
+            previousAttributes.cancel_at_period_end === false) {
+          console.log('Subscription marked for cancellation at period end:', subscription.id);
+          
+          if (subscription.customer) {
+            // Handle this similarly to a cancellation but note it's still active
+            await handleSubscriptionMarkedForCancellation(subscription.customer.toString(), subscription.id);
+          }
+        } else {
+          // Handle regular subscription updates
+          if (subscription.customer) {
+            // Check if this is a renewal event by examining the current_period_start
+            const previousEvent = event.data.previous_attributes as any;
+            
+            if (previousEvent && previousEvent.current_period_start) {
+              // This is a renewal - the billing period has changed
+              console.log('Subscription renewal detected - resetting credits');
+              await handleSubscriptionRenewal(subscription.customer.toString(), subscription.id);
+            } else {
+              // Regular update, not a renewal
+              await handleSubscriptionUpdated(subscription.customer.toString(), subscription.id);
+            }
+          }
         }
         break;
       }
