@@ -46,7 +46,23 @@ export async function POST(request: Request) {
       .eq('user_id', userId)
       .single();
     
-    let stripeSubscriptions = [];
+    // Define the type for subscription items
+    interface SubscriptionItem {
+      price_id: string;
+      quantity: number | null;
+    }
+
+    // Define the type for stripe subscriptions
+    interface StripeSubscriptionInfo {
+      id: string;
+      status: string;
+      current_period_end: string;
+      canceled_at: string | null;
+      cancel_at_period_end: boolean;
+      items: SubscriptionItem[];
+    }
+
+    let stripeSubscriptions: StripeSubscriptionInfo[] = [];
     let stripeCustomerId = null;
     
     if (!customerError && customerData) {
@@ -60,17 +76,23 @@ export async function POST(request: Request) {
           expand: ['data.default_payment_method']
         });
         
-        stripeSubscriptions = subscriptions.data.map(sub => ({
-          id: sub.id,
-          status: sub.status,
-          current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
-          canceled_at: sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : null,
-          cancel_at_period_end: sub.cancel_at_period_end,
-          items: sub.items.data.map(item => ({
-            price_id: item.price.id,
-            quantity: item.quantity
-          }))
-        }));
+        // Process each subscription with proper type handling
+        stripeSubscriptions = subscriptions.data.map(sub => {
+          // Safely access properties with type assertions
+          const subObj = sub as any; // Use any for accessing properties TypeScript doesn't recognize
+          
+          return {
+            id: sub.id,
+            status: sub.status,
+            current_period_end: new Date(subObj.current_period_end * 1000).toISOString(),
+            canceled_at: subObj.canceled_at ? new Date(subObj.canceled_at * 1000).toISOString() : null,
+            cancel_at_period_end: sub.cancel_at_period_end,
+            items: sub.items.data.map(item => ({
+              price_id: item.price.id,
+              quantity: item.quantity || null
+            }))
+          };
+        });
       } catch (stripeError) {
         console.error('Error fetching Stripe subscriptions:', stripeError);
       }
