@@ -25,7 +25,7 @@ export default function UpgradePage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [userCredits, setUserCredits] = useState<{ photos_limit: number; photos_used: number; plan_type: string; email?: string; subscription_status?: string; cancellation_date?: string } | null>(null);
+  const [userCredits, setUserCredits] = useState<{ photos_limit: number; photos_used: number; plan_type: string; email?: string; subscription_status?: string; cancellation_date?: string; subscription_end_date?: string } | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -169,21 +169,24 @@ export default function UpgradePage() {
       // Subscription cancelled successfully
       console.log('Subscription successfully marked for cancellation');
       
-      // Update the local state to reflect the cancellation
+      // Update the local state to reflect the cancellation with the data from the API response
       if (userCredits) {
         setUserCredits({
           ...userCredits,
           subscription_status: 'canceled',
-          cancellation_date: new Date().toISOString()
+          cancellation_date: new Date().toISOString(),
+          subscription_end_date: responseData.subscription_end_date || null
         });
       }
       
       // Close the modal and show a success message
       setShowCancelConfirm(false);
-      alert('Your subscription has been successfully canceled. Your credits will remain available until the end of your billing period.');
+      alert(responseData.message || 'Your subscription has been successfully canceled. Your current plan will remain active until the end of your billing period.');
       
-      // Refresh the page to update all UI elements
-      window.location.reload();
+      // Refresh user data instead of reloading the page
+      if (user) {
+        await fetchUserCredits(user.id);
+      }
       
     } catch (error: any) {
       console.error('Error cancelling subscription:', error);
@@ -317,6 +320,12 @@ export default function UpgradePage() {
                         {userCredits?.subscription_status === 'canceled' ? 'CANCELED' : 'CURRENT PLAN'}
                       </div>
                     )}
+                    {/* Show subscription end date if canceled */}
+                    {isCurrentPlan && userCredits?.subscription_status === 'canceled' && userCredits?.subscription_end_date && (
+                      <div className="mt-2 text-xs text-red-500 font-medium">
+                        Active until: {new Date(userCredits.subscription_end_date).toLocaleDateString()}
+                      </div>
+                    )}
                     {isFeatured && !isAgencyPlan && (
                       <div className="absolute top-0 right-0 bg-[#2563eb] text-white text-xs font-semibold px-3 py-1 rounded-bl-lg rounded-tr-lg">
                         BEST VALUE
@@ -345,7 +354,7 @@ export default function UpgradePage() {
                         className="w-full py-2 px-4 bg-gray-300 text-gray-600 font-medium rounded-md shadow-sm cursor-not-allowed"
                         disabled
                       >
-                        Current Plan
+                        {userCredits?.subscription_status === 'canceled' ? 'Canceled Plan' : 'Current Plan'}
                       </button>
                     ) : plan.name === "Standard" ? (
                       <button 

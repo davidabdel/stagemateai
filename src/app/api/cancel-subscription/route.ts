@@ -84,24 +84,20 @@ export async function POST(request: Request) {
       let updatedData: any = null;
       
       try {
-        // Immediately change the plan type to free
+        // Only update the subscription status, not the plan type
         console.log('Attempting to update user_usage table with the following data:', {
-          plan_type: 'free',
           subscription_status: 'canceled',
           cancellation_date: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          photos_limit: 3
+          updated_at: new Date().toISOString()
         });
         
         // Use select() to get the updated data back
         const { data: updateResult, error: updateError } = await supabase
           .from('user_usage')
           .update({ 
-            plan_type: 'free',
             subscription_status: 'canceled',
             cancellation_date: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            photos_limit: 3 // Reset to free plan limit
+            updated_at: new Date().toISOString()
           })
           .eq('user_id', userId)
           .select();
@@ -124,10 +120,10 @@ export async function POST(request: Request) {
       
       return NextResponse.json({
         success: true,
-        message: 'Your subscription has been canceled and your plan has been changed to free',
+        message: 'Your subscription has been canceled. Your current plan will remain active until the end of your billing period.',
         subscription_status: 'canceled',
-        plan_type: 'free',
-        photos_limit: 3,
+        plan_type: userUsage.plan_type, // Keep the current plan type
+        photos_limit: userUsage.photos_limit, // Keep the current photos limit
         test_mode: true,
         updated_data: updatedData || null,
         debug_info: {
@@ -138,13 +134,16 @@ export async function POST(request: Request) {
     }
     
     // If we found a Stripe subscription, cancel it
+    let currentPeriodEnd: Date | null = null;
     try {
       const subscription = await stripe.subscriptions.update(
         stripeSubscriptionId,
         { cancel_at_period_end: true }
       );
       
-      console.log('Successfully updated Stripe subscription to cancel at period end:', subscription.id);
+      // Get the current period end date
+      currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
+      console.log('Successfully updated Stripe subscription to cancel at period end:', subscription.id, 'Period ends:', currentPeriodEnd.toISOString());
     } catch (stripeError) {
       console.error('Error updating Stripe subscription:', stripeError);
       // Continue anyway - we'll still mark the subscription as canceled in our database
@@ -154,26 +153,24 @@ export async function POST(request: Request) {
     // Declare updatedData at a higher scope so it's available for the final response
     let updatedData: any = null;
     
-    // Update the user's plan status in the database
-    // Mark as canceled but preserve existing credits
+    // Update the user's subscription status in the database
+    // Mark as canceled but preserve existing plan type and credits until the period ends
     try {
       console.log('Attempting to update user_usage table after Stripe cancellation with the following data:', {
-        plan_type: 'free',
         subscription_status: 'canceled',
         cancellation_date: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        photos_limit: 3
+        subscription_end_date: currentPeriodEnd ? currentPeriodEnd.toISOString() : null
       });
       
       // Use select() to get the updated data back
       const { data: updateResult, error: updateError } = await supabase
         .from('user_usage')
         .update({ 
-          plan_type: 'free',
           subscription_status: 'canceled',
           cancellation_date: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          photos_limit: 3 // Reset to free plan limit
+          subscription_end_date: currentPeriodEnd ? currentPeriodEnd.toISOString() : null
         })
         .eq('user_id', userId)
         .select();
@@ -197,11 +194,13 @@ export async function POST(request: Request) {
     // Return success response
     return NextResponse.json({
       success: true,
-      message: 'Your subscription has been canceled and your plan has been changed to free',
+      message: currentPeriodEnd 
+        ? `Your subscription has been canceled. Your current plan will remain active until ${currentPeriodEnd.toLocaleDateString()}.` 
+        : 'Your subscription has been canceled.',
       subscription_status: 'canceled',
-      plan_type: 'free',
-      photos_limit: 3,
-      subscription_end_date: new Date().toISOString(), // Use current date as fallback
+      plan_type: userUsage.plan_type, // Keep the current plan type
+      photos_limit: userUsage.photos_limit, // Keep the current photos limit
+      subscription_end_date: currentPeriodEnd ? currentPeriodEnd.toISOString() : null,
       updated_data: updatedData || null,
       debug_info: {
         timestamp: new Date().toISOString(),
