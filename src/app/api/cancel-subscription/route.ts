@@ -11,8 +11,10 @@ export async function POST(request: Request) {
   try {
     // Parse the request body
     const { userId } = await request.json();
+    console.log('Cancel subscription request received for userId:', userId);
 
     if (!userId) {
+      console.log('Error: User ID is required');
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
@@ -78,9 +80,21 @@ export async function POST(request: Request) {
       
       // Mark subscription as canceled but KEEP existing plan and credits
       // This preserves the user's access until the end of the billing period
+      // Declare updatedData at a higher scope so it's available for the response
+      let updatedData: any = null;
+      
       try {
         // Immediately change the plan type to free
-        const { error: updateError } = await supabase
+        console.log('Attempting to update user_usage table with the following data:', {
+          plan_type: 'free',
+          subscription_status: 'canceled',
+          cancellation_date: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          photos_limit: 3
+        });
+        
+        // Use select() to get the updated data back
+        const { data: updateResult, error: updateError } = await supabase
           .from('user_usage')
           .update({ 
             plan_type: 'free',
@@ -89,12 +103,18 @@ export async function POST(request: Request) {
             updated_at: new Date().toISOString(),
             photos_limit: 3 // Reset to free plan limit
           })
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .select();
         
         if (updateError) {
           console.error('Error marking subscription as canceled:', updateError);
           // Continue anyway - don't return an error response
           console.log('Continuing despite error to ensure UI shows success');
+        } else if (updateResult) {
+          updatedData = updateResult;
+          console.log('Successfully updated user plan to free. Updated data:', updatedData);
+        } else {
+          console.log('No error but also no data returned from update operation');
         }
       } catch (err) {
         console.error('Exception during subscription cancellation:', err);
@@ -108,7 +128,12 @@ export async function POST(request: Request) {
         subscription_status: 'canceled',
         plan_type: 'free',
         photos_limit: 3,
-        test_mode: true
+        test_mode: true,
+        updated_data: updatedData || null,
+        debug_info: {
+          timestamp: new Date().toISOString(),
+          user_id: userId
+        }
       });
     }
     
@@ -126,10 +151,22 @@ export async function POST(request: Request) {
       console.log('Continuing despite Stripe error to ensure UI shows success');
     }
     
+    // Declare updatedData at a higher scope so it's available for the final response
+    let updatedData: any = null;
+    
     // Update the user's plan status in the database
     // Mark as canceled but preserve existing credits
     try {
-      const { error: updateError } = await supabase
+      console.log('Attempting to update user_usage table after Stripe cancellation with the following data:', {
+        plan_type: 'free',
+        subscription_status: 'canceled',
+        cancellation_date: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        photos_limit: 3
+      });
+      
+      // Use select() to get the updated data back
+      const { data: updateResult, error: updateError } = await supabase
         .from('user_usage')
         .update({ 
           plan_type: 'free',
@@ -138,7 +175,13 @@ export async function POST(request: Request) {
           updated_at: new Date().toISOString(),
           photos_limit: 3 // Reset to free plan limit
         })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .select();
+        
+      if (updateResult) {
+        updatedData = updateResult;
+        console.log('Successfully updated user plan. Updated data:', updatedData);
+      }
         
       if (updateError) {
         console.error('Error marking subscription as canceled in database:', updateError);
@@ -159,6 +202,11 @@ export async function POST(request: Request) {
       plan_type: 'free',
       photos_limit: 3,
       subscription_end_date: new Date().toISOString(), // Use current date as fallback
+      updated_data: updatedData || null,
+      debug_info: {
+        timestamp: new Date().toISOString(),
+        user_id: userId
+      }
     });
   } catch (error: any) {
     console.error('Error cancelling subscription:', error);
