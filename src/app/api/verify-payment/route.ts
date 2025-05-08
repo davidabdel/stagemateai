@@ -100,6 +100,31 @@ export async function POST(req: NextRequest) {
       if (tableCheckError && tableCheckError.message.includes('does not exist')) {
         console.log('stripe_customers table does not exist, skipping customer storage');
       } else {
+        // Debug the subscription object structure
+        console.log('Session subscription type:', typeof session.subscription);
+        console.log('Session subscription value:', session.subscription);
+        
+        // Extract the subscription ID correctly
+        let subscriptionId = null;
+        if (session.subscription) {
+          if (typeof session.subscription === 'string') {
+            // If it's already a string, use it directly
+            subscriptionId = session.subscription;
+            console.log('Using string subscription ID:', subscriptionId);
+          } else if (typeof session.subscription === 'object') {
+            // If it's an object, try to get the id property
+            if (session.subscription.id) {
+              subscriptionId = session.subscription.id;
+              console.log('Using object.id subscription ID:', subscriptionId);
+            } else {
+              // Last resort - convert to string but check it's not [object Object]
+              const strValue = session.subscription.toString();
+              subscriptionId = strValue !== '[object Object]' ? strValue : null;
+              console.log('Using toString subscription ID:', subscriptionId);
+            }
+          }
+        }
+        
         // Store customer info if table exists
         const { error: customerError } = await supabase
           .from('stripe_customers')
@@ -107,7 +132,7 @@ export async function POST(req: NextRequest) {
             user_id: userId,
             customer_id: customerId,
             email: userEmail,
-            subscription_id: session.subscription?.toString() || null // Store the subscription ID if available
+            subscription_id: subscriptionId
           }]);
           
         if (customerError) {
