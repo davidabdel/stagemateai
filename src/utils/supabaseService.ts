@@ -8,6 +8,8 @@ export interface UserCredits {
   photos_used: number;
   plan_type: string;
   updated_at?: string;
+  subscription_status?: string;
+  cancellation_date?: string;
 }
 
 export interface Listing {

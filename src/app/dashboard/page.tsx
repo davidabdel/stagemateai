@@ -450,6 +450,13 @@ export default function Dashboard() {
             } photo{(userCredits && (userCredits.photos_limit - userCredits.photos_used) === 1) ? '' : 's'} remaining.
           </p>
           
+          {userCredits?.subscription_status === 'canceled' && (
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded" role="alert">
+              <p className="font-bold">Subscription Canceled</p>
+              <p>Your subscription has been canceled. You will continue to have access to your {userCredits.plan_type} plan benefits until the end of your billing period.</p>
+            </div>
+          )}
+          
           {/* Tab Navigation */}
           <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
             <nav className="flex space-x-8">
