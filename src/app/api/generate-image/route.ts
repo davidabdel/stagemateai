@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI, { toFile } from 'openai';
-import { promises as fs } from 'fs';
-import path from 'path';
-import os from 'os';
-import { createReadStream } from 'fs';
 import { getUserCredits, decrementUserCredits } from '@/utils/supabaseService';
 
 // Initialize the OpenAI client with your API key from environment variables
@@ -86,18 +82,12 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         
         // Get the image as a buffer
         const imageBuffer = await imageResponse.arrayBuffer();
+        console.log('Server: Image downloaded, buffer size:', imageBuffer.byteLength);
         
-        // Save the image to a temporary file
-        const tempDir = os.tmpdir();
-        const imagePath = path.join(tempDir, `image-${Date.now()}.jpg`);
-        await fs.writeFile(imagePath, Buffer.from(imageBuffer));
-        
-        console.log('Server: Image downloaded and saved to', imagePath);
-        
-        // Create a file object from the image data for the OpenAI API
+        // Create a file object directly from the buffer for the OpenAI API
         console.log('Server: Preparing image for OpenAI API');
-        const imageStream = createReadStream(imagePath);
-        const imageFile = await toFile(imageStream, null, { type: 'image/jpeg' });
+        const imageFile = await toFile(Buffer.from(imageBuffer), 'image.jpg', { type: 'image/jpeg' });
+        console.log('Server: Image file created successfully');
         
         // Call the OpenAI Images Edit API using the SDK
         console.log('Server: Calling OpenAI Images Edit API with gpt-image-1 model');
@@ -115,8 +105,7 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         console.log('Server: OpenAI Images Edit API response received');
         console.log('Server: OpenAI API response structure:', JSON.stringify(response, null, 2));
         
-        // Clean up the temporary file
-        await fs.unlink(imagePath).catch(err => console.error('Error deleting temp file:', err));
+        // No temporary file to clean up with the new approach
         
         // Handle the response
         if (response.data && response.data.length > 0) {
