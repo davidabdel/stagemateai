@@ -64,22 +64,15 @@ const defaultVideoTutorials = [
     id: '1',
     title: 'Getting Started with StageMate AI',
     description: 'Learn the basics of using StageMate AI to create stunning product images.',
-    videoId: 'dQw4w9WgXcQ', // Replace with your actual YouTube video ID
-    thumbnail: '/images/video-thumbnail-1.jpg' // Replace with your actual thumbnail path
+    videoId: 'jO0ILN23L-g', // Replace with your actual YouTube video ID
+    thumbnail: 'https://i9.ytimg.com/vi/jO0ILN23L-g/mqdefault.jpg?sqp=CKDUgMEG-oaymwEmCMACELQB8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGBogNyh_MA8=&rs=AOn4CLBWg5O4NBRRpwZhkIRzi6sSi7SneA' // Replace with your actual thumbnail path
   },
   {
     id: '2',
-    title: 'Advanced Staging Techniques',
-    description: 'Take your product images to the next level with these advanced techniques.',
-    videoId: 'dQw4w9WgXcQ', // Replace with your actual YouTube video ID
-    thumbnail: '/images/video-thumbnail-2.jpg' // Replace with your actual thumbnail path
-  },
-  {
-    id: '3',
-    title: 'Optimizing Your Images for E-commerce',
-    description: 'Learn how to optimize your staged images for maximum impact on e-commerce platforms.',
-    videoId: 'dQw4w9WgXcQ', // Replace with your actual YouTube video ID
-    thumbnail: '/images/video-thumbnail-3.jpg' // Replace with your actual thumbnail path
+    title: 'Dont List an Empty Home',
+    description: 'Turn your empty home into a staged home with StageMate AI.',
+    videoId: 's_ZeJZx4_n8', // Replace with your actual YouTube video ID
+    thumbnail: 'https://i9.ytimg.com/vi/s_ZeJZx4_n8/mqdefault.jpg?sqp=CKDUgMEG-oaymwEmCMACELQB8quKqQMa8AEB-AHwB4AC0AWKAgwIABABGGUgWyhEMA8=&rs=AOn4CLCEqM3klHLeBpjiJUdDJT5zBgwFVg' // Replace with your actual thumbnail path
   }
 ];
 

@@ -53,6 +53,10 @@ export default function ClientPage() {
     { value: 'dining_room', label: 'Dining Room' },
     { value: 'office', label: 'Home Office' },
     { value: 'outdoor', label: 'Outdoor Space' },
+    { value: 'backyard', label: 'Backyard' },
+    { value: 'fron yard', label: 'Front Yard' },
+    { value: 'facede', label: 'Facade' },
+    { value: 'pool', label: 'Pool' },
     { value: 'other', label: 'Other' }
   ];
   
@@ -506,16 +510,10 @@ export default function ClientPage() {
             <p className="text-[#64748b] dark:text-[#94a3b8] mb-6">
               We&apos;re currently processing {processingCount} image{processingCount !== 1 ? 's' : ''} with StageMateAI. This may take a few minutes.
             </p>
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-[#64748b] dark:text-[#94a3b8]">
-                You can wait here or come back later - your images will be processed in the background.
+            <div className="flex justify-center items-center">
+              <p className="text-sm font-bold text-red-600 dark:text-red-500">
+                WARNING! DO NOT CLOSE this window. Images Processing
               </p>
-              <button 
-                onClick={() => setShowProcessingNotification(false)}
-                className="bg-[#2563eb] hover:bg-[#1e40af] text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Dismiss
-              </button>
             </div>
           </div>
         </div>
