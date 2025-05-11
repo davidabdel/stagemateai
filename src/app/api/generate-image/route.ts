@@ -96,7 +96,7 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
           image: imageFile,
           prompt: prompt,
           n: 1,
-          size: "1024x1024",
+          size: "1536x1024",
           quality: "high" // Request high-quality images for better downloads
         });
         
@@ -145,7 +145,6 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         // If we get here, the response structure was invalid
         console.error('Server: Invalid response structure from OpenAI:', response);
         throw new Error('Invalid response structure from OpenAI API');
-
       } catch (openaiError) {
         console.error('Server: OpenAI API error:', openaiError);
         throw openaiError;
@@ -168,4 +167,4 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
       { status: 500 }
     );
   }
-}
+  }
