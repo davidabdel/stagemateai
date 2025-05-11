@@ -82,23 +82,12 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
           // Get the image as a buffer
           const imageBuffer = await imageResponse.arrayBuffer();
           console.log('Server: Image downloaded, buffer size:', imageBuffer.byteLength);
-          console.log('Server: User agent:', request.headers.get('user-agent'));
           
           // Create a file object directly from the buffer for the OpenAI API
           console.log('Server: Preparing image for OpenAI API');
           
-          try {
-            // Log buffer type and content information
-            console.log('Server: Buffer type:', typeof imageBuffer);
-            console.log('Server: Is ArrayBuffer?', imageBuffer instanceof ArrayBuffer);
-            
-            // Create a proper buffer with explicit encoding
-            const buffer = Buffer.from(new Uint8Array(imageBuffer));
-            console.log('Server: Node.js Buffer created, length:', buffer.length);
-            
-            // Create the file with explicit mime type and filename
-            const imageFile = await toFile(buffer, 'image.jpg', { type: 'image/jpeg' });
-            console.log('Server: Image file created successfully, size:', imageFile.size);
+          const imageFile = await toFile(Buffer.from(imageBuffer), 'image.jpg', { type: 'image/jpeg' });
+        console.log('Server: Image file created successfully');
             
             // Call the OpenAI Images Edit API using the SDK
             console.log('Server: Calling OpenAI Images Edit API with gpt-image-1 model');
