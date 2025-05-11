@@ -66,8 +66,6 @@ export async function POST(request: NextRequest) {
 IMPORTANT: Do not change colors or the Benchtops, Walls, Splashbacks and Tiles. 
 Do not change any colours of the actual house walls interior or exterior.
 
-Render all images with a 3:2 Aspect ratio.
-
 This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes} style` : ''}.`;
       
       console.log('Server: Using Images Generate API prompt:', prompt);
@@ -83,11 +81,12 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         // Get the image as a buffer
         const imageBuffer = await imageResponse.arrayBuffer();
         console.log('Server: Image downloaded, buffer size:', imageBuffer.byteLength);
+        console.log('Server: User agent:', request.headers.get('user-agent'));
         
         // Create a file object directly from the buffer for the OpenAI API
         console.log('Server: Preparing image for OpenAI API');
         const imageFile = await toFile(Buffer.from(imageBuffer), 'image.jpg', { type: 'image/jpeg' });
-        console.log('Server: Image file created successfully');
+        console.log('Server: Image file created successfully, size:', imageFile.size);
         
         // Call the OpenAI Images Edit API using the SDK
         console.log('Server: Calling OpenAI Images Edit API with gpt-image-1 model');
@@ -98,7 +97,7 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
           image: imageFile,
           prompt: prompt,
           n: 1,
-          size: "1024x1024",
+          size: "1024x1024", // Using supported size parameter
           quality: "high" // Request high-quality images for better downloads
         });
         
