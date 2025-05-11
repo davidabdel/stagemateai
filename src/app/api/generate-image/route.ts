@@ -109,8 +109,8 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
               image: imageFile,
               prompt: prompt,
               n: 1,
-              size: "1024x1024", // Using supported size parameter
-              quality: "high" // Request high-quality images for better downloads
+              size: "1792x1024", // Using supported size parameter
+              quality: "hd" // Request high-quality images for better downloads
             });
             
             console.log('Server: OpenAI Images Edit API response received');
