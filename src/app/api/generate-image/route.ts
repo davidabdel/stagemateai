@@ -3,8 +3,20 @@ import OpenAI, { toFile } from 'openai';
 import { getUserCredits, decrementUserCredits } from '@/utils/supabaseService';
 
 // Initialize the OpenAI client with your API key from environment variables
+const apiKey = process.env.OPENAI_API_KEY;
+
+// Validate OpenAI API key is present and log its status (without revealing the full key)
+if (!apiKey) {
+  console.error('Server: OPENAI_API_KEY is not set in environment variables');
+} else {
+  // Log first and last few characters of the API key for debugging
+  const keyPreview = `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`;
+  console.log(`Server: Using OpenAI API key: ${keyPreview}`);
+}
+
+// Initialize the OpenAI client
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: apiKey || 'dummy-key-for-initialization', // Use dummy key to avoid initialization error
 });
 
 // IMPORTANT: This API route uses the OpenAI Images Edit API with gpt-image-1 model
@@ -90,6 +102,26 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
       // Call the OpenAI Images Edit API using the SDK
       console.log('Server: Calling OpenAI Images Edit API with gpt-image-1 model');
       console.log('Server: Using prompt:', prompt);
+      console.log('Server: Image file size:', imageFile.size, 'bytes');
+      
+      // Validate OpenAI API key before making the request
+      if (!process.env.OPENAI_API_KEY) {
+        console.error('Server: Cannot proceed with image generation - OPENAI_API_KEY is missing');
+        throw new Error('OpenAI API key is not configured in the server environment');
+      }
+      
+      // Log request details for debugging
+      console.log('Server: Image file details:', {
+        size: imageFile.size,
+        type: imageFile.type,
+        name: imageFile.name
+      });
+  
+      // For testing/debugging when API key is missing, return a mock response
+      if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'dummy-key-for-initialization') {
+        console.log('Server: Using mock response due to missing API key');
+        throw new Error('OpenAI API key is not properly configured. Please check your environment variables.');
+      }
   
       const response = await openai.images.edit({
         model: "gpt-image-1",
@@ -147,12 +179,49 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
     } catch (apiError: unknown) {
       console.error('Server: API error:', apiError);
       
-      // For demo/development, return the original image as fallback
+      // Instead of silently returning the original image, return a proper error
+      // This will help with debugging and let the client know something went wrong
+      const errorMessage = apiError instanceof Error ? apiError.message : 'Failed to generate image';
+      console.error('Server: Error details:', errorMessage);
+      
+      // Check for specific OpenAI error types
+      if (apiError instanceof Error) {
+        // Log the full error object for debugging
+        console.error('Server: Full error object:', JSON.stringify({
+          name: apiError.name,
+          message: apiError.message,
+          stack: apiError.stack,
+          cause: apiError.cause
+        }, null, 2));
+        
+        // Check for common OpenAI API errors
+        if (errorMessage.includes('API key')) {
+          return NextResponse.json({ 
+            success: false,
+            error: 'OpenAI API key configuration error. Please check your server environment variables.'
+          }, { status: 500 });
+        }
+        
+        if (errorMessage.includes('rate limit')) {
+          return NextResponse.json({ 
+            success: false,
+            error: 'OpenAI API rate limit exceeded. Please try again later.'
+          }, { status: 429 });
+        }
+        
+        // Check for authentication errors
+        if (errorMessage.includes('authentication') || errorMessage.includes('auth') || errorMessage.includes('unauthorized')) {
+          return NextResponse.json({ 
+            success: false,
+            error: 'OpenAI API authentication failed. Please check your API key.'
+          }, { status: 401 });
+        }
+      }
+      
       return NextResponse.json({ 
-        generatedImageUrl: imageUrl,
         success: false,
-        error: apiError instanceof Error ? apiError.message : 'Failed to generate image'
-      });
+        error: errorMessage
+      }, { status: 500 });
     }
   } catch (error: unknown) {
     console.error('Server: Error in API route:', error);

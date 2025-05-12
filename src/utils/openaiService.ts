@@ -35,8 +35,19 @@ export async function generateStagedImage(imageUrl: string, roomType: string, st
           throw new Error('NO_CREDITS_REMAINING');
         }
         
-        const errorText = await response.text();
-        throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+        // Try to parse the error as JSON first
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || `API request failed: ${response.status} ${response.statusText}`;
+        } catch (e) {
+          // If not JSON, get as text
+          const errorText = await response.text();
+          errorMessage = `API request failed: ${response.status} ${response.statusText} - ${errorText}`;
+        }
+        
+        console.error('API error details:', errorMessage);
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
@@ -44,32 +55,27 @@ export async function generateStagedImage(imageUrl: string, roomType: string, st
       
       if (data.success) {
         console.log("Successfully generated edited image");
-        console.log("Credits remaining:", data.creditsRemaining);
+        console.log("Credits remaining:", data.photosRemaining);
         
         // Return both the image URL and credits remaining
         return {
           imageUrl: data.generatedImageUrl,
-          creditsRemaining: data.creditsRemaining
+          creditsRemaining: data.photosRemaining
         };
       } else {
-        console.warn("Image editing failed on server, using fallback");
-        // Return the original image as fallback
-        return {
-          imageUrl: imageUrl,
-          creditsRemaining: null
-        };
+        console.warn("Image editing failed on server");
+        // Throw the error so it can be properly handled by the client
+        throw new Error(data.error || 'Failed to generate image');
       }
     } catch (apiError) {
       console.error("API error:", apiError);
-      console.log("Using original image as fallback");
-      return {
-        imageUrl: imageUrl,
-        creditsRemaining: null
-      }; // Fallback to original image
+      // Propagate the error instead of silently using the original image
+      // This allows the client to handle the error appropriately
+      throw apiError;
     }
   } catch (error) {
     console.error('Error in generateStagedImage function:', error);
-    // Return the original image as fallback
-    return imageUrl;
+    // Propagate the error instead of silently using the original image
+    throw error;
   }
 }

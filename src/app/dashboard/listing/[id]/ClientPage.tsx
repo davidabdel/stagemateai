@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 import { supabase } from '@/utils/supabaseClient';
 import { checkAuth, signOut } from '@/utils/authUtils';
 import { generateStagedImage } from '@/utils/openaiService';
@@ -311,10 +312,17 @@ export default function ClientPage() {
           // Call OpenAI API to generate a staged image
           console.log('Calling OpenAI API to generate staged image');
           try {
+            // Show a toast notification that we're processing
+            toast.loading('Generating staged image...', { id: 'generating-image' });
+            
             const result = await generateStagedImage(publicUrl, currentPhoto.roomType, currentPhoto.styleNotes, user.id);
             
-            // If we got a string back (fallback image), use it directly
-            const stagedImageUrl = typeof result === 'string' ? result : result.imageUrl;
+            // Success - dismiss the loading toast
+            toast.dismiss('generating-image');
+            toast.success('Image generated successfully!');
+            
+            // Get the staged image URL from the result
+            const stagedImageUrl = result.imageUrl;
             
             // Update the photo record with the staged image URL
             const { error: updateError } = await supabase
@@ -334,6 +342,9 @@ export default function ClientPage() {
           } catch (aiError) {
             console.error('Error in AI processing:', aiError);
             
+            // Dismiss any loading toast
+            toast.dismiss('generating-image');
+            
             // Check if we got a no credits error
             if (aiError instanceof Error && aiError.message === 'NO_CREDITS_REMAINING') {
               console.log('User has no credits remaining');
@@ -342,6 +353,20 @@ export default function ClientPage() {
               setShowProcessingNotification(false);
               return; // Stop processing queue
             }
+            
+            // Show appropriate error message based on the error
+            if (aiError instanceof Error) {
+              if (aiError.message.includes('API key')) {
+                toast.error('OpenAI API configuration error. Please contact support.');
+              } else if (aiError.message.includes('rate limit')) {
+                toast.error('Rate limit exceeded. Please try again later.');
+              } else {
+                toast.error(`Image generation failed: ${aiError.message}`);
+              }
+            } else {
+              toast.error('Failed to generate image. Please try again.');
+            }
+            
             // Update the photo to mark it as failed
             await supabase
               .from('photos')
