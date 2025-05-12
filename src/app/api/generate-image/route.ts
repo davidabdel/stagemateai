@@ -98,7 +98,7 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
           image: imageFile,
           prompt: prompt,
           n: 1,
-          size: "1024x1024",
+          size: "1536x1024",
           quality: "high" // Request high-quality images for better downloads
         });
         
