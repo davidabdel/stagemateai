@@ -65,8 +65,9 @@ export async function POST(request: NextRequest) {
 
  
 Do not change any colors of the actual house walls interior or exterior.
+Do NOT remove items like, fridges, cupboards, hallways or rooms. 
 
-DO NOT change any of the benchtop colours or splashback colors. These need to remain the same
+Do NOT change any of the benchtop colours or splashback colors. These need to remain the same
 
 This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes} style` : ''}.`;
       
