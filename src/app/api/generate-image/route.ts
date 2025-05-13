@@ -64,11 +64,9 @@ export async function POST(request: NextRequest) {
       const prompt = `Create an image and turn the attached image into a real-estate ready image, make it more inviting. Do Not change any fixed building items such as walls, windows and doors. 
 
  
-Do not change any colors of the actual house walls interior or exterior.
-Do NOT remove items like, fridges, cupboards, hallways or rooms. 
-Do not change furniture colors including chairs and tables. 
+Do not change any colours of the actual house walls interior or exterior.
 
-Do NOT change any of the benchtop colours or splashback colors. These need to remain the same
+Do not remove items like, fridges, cupboards, hallways or rooms. 
 
 This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes} style` : ''}.`;
       
