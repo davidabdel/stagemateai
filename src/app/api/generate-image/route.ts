@@ -61,13 +61,16 @@ export async function POST(request: NextRequest) {
 
     try {
       // Build the prompt exactly as requested
-      const prompt = `Create an image and turn the attached image into a real-estate ready image, make it more inviting. Do Not change any fixed building items such as walls, windows and doors. 
+      // Preserve all fixed items, walls, windows, doors, pools, railings, and stairs.
+      // Preserve all colors of the actual house walls interior or exterior.
+      // Preserve all home appliances such as fridges, washing machines, etc.
+      // Do not add any building's or furniture unless it is asked in the style notes. 
 
- 
-Do not change any colours of the actual house walls interior or exterior.
-
-Do not remove items like, fridges, cupboards, hallways or rooms. 
-
+      const prompt = `Create an image turn the attached image into a real-estate ready image, make it more inviting while keeping it true to itself as it's to sell the property
+      Preserve all fixed items, walls, windows, doors, pools, railings, and stairs.
+      Preserve all colors of the actual house walls interior or exterior.
+      Preserve all home appliances such as fridges, washing machines, etc.
+      
 This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes} style` : ''}.`;
       
       console.log('Server: Using Images Generate API prompt:', prompt);
