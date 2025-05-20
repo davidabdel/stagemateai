@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/utils/supabaseClient';
+
+// Access the mock videos from the parent route
+// This is a workaround for demonstration purposes
+// In a real app, you would use a database or a proper state management solution
+declare const mockVideos: any[];
 
 export async function PUT(
   request: Request,
@@ -18,31 +22,30 @@ export async function PUT(
       );
     }
     
-    // Update video
-    const { data, error } = await supabase
-      .from('videos')
-      .update({ 
-        title, 
-        description, 
-        videoId,
-        thumbnail: thumbnail || `/images/video-thumbnail-default.jpg`,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select();
+    // Find the video in our mock data
+    const videoIndex = mockVideos.findIndex(v => v.id === id);
     
-    if (error) {
-      throw error;
-    }
-    
-    if (data.length === 0) {
+    if (videoIndex === -1) {
       return NextResponse.json(
         { error: 'Video not found' },
         { status: 404 }
       );
     }
     
-    return NextResponse.json({ success: true, video: data[0] });
+    // Update the video
+    const updatedVideo = {
+      ...mockVideos[videoIndex],
+      title,
+      description,
+      videoId,
+      thumbnail: thumbnail || mockVideos[videoIndex].thumbnail,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Replace the old video with the updated one
+    mockVideos[videoIndex] = updatedVideo;
+    
+    return NextResponse.json({ success: true, video: updatedVideo });
   } catch (error) {
     console.error('Error updating video:', error);
     return NextResponse.json(
@@ -59,15 +62,18 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    // Delete video
-    const { error } = await supabase
-      .from('videos')
-      .delete()
-      .eq('id', id);
+    // Find the video in our mock data
+    const videoIndex = mockVideos.findIndex(v => v.id === id);
     
-    if (error) {
-      throw error;
+    if (videoIndex === -1) {
+      return NextResponse.json(
+        { error: 'Video not found' },
+        { status: 404 }
+      );
     }
+    
+    // Remove the video from our mock array
+    mockVideos.splice(videoIndex, 1);
     
     return NextResponse.json({ success: true });
   } catch (error) {
