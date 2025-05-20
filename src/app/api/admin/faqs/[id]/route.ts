@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/utils/supabaseClient';
+
+// Access the mock FAQs from the parent route
+// This is a workaround for demonstration purposes
+// In a real app, you would use a database or a proper state management solution
+declare const mockFaqs: any[];
 
 export async function PUT(
   request: Request,
@@ -18,29 +22,28 @@ export async function PUT(
       );
     }
     
-    // Update FAQ
-    const { data, error } = await supabase
-      .from('faqs')
-      .update({ 
-        question, 
-        answer,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select();
+    // Find the FAQ in our mock data
+    const faqIndex = mockFaqs.findIndex(f => f.id === id);
     
-    if (error) {
-      throw error;
-    }
-    
-    if (data.length === 0) {
+    if (faqIndex === -1) {
       return NextResponse.json(
         { error: 'FAQ not found' },
         { status: 404 }
       );
     }
     
-    return NextResponse.json({ success: true, faq: data[0] });
+    // Update the FAQ
+    const updatedFaq = {
+      ...mockFaqs[faqIndex],
+      question,
+      answer,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Replace the old FAQ with the updated one
+    mockFaqs[faqIndex] = updatedFaq;
+    
+    return NextResponse.json({ success: true, faq: updatedFaq });
   } catch (error) {
     console.error('Error updating FAQ:', error);
     return NextResponse.json(
@@ -57,15 +60,18 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    // Delete FAQ
-    const { error } = await supabase
-      .from('faqs')
-      .delete()
-      .eq('id', id);
+    // Find the FAQ in our mock data
+    const faqIndex = mockFaqs.findIndex(f => f.id === id);
     
-    if (error) {
-      throw error;
+    if (faqIndex === -1) {
+      return NextResponse.json(
+        { error: 'FAQ not found' },
+        { status: 404 }
+      );
     }
+    
+    // Remove the FAQ from our mock array
+    mockFaqs.splice(faqIndex, 1);
     
     return NextResponse.json({ success: true });
   } catch (error) {
