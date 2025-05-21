@@ -2,12 +2,11 @@ import React from 'react';
 import Link from 'next/link';
 
 interface NoCreditsModalProps {
-  isOpen: boolean;
   onClose: () => void;
+  onUpgrade?: () => void;
 }
 
-const NoCreditsModal: React.FC<NoCreditsModalProps> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
+const NoCreditsModal: React.FC<NoCreditsModalProps> = ({ onClose, onUpgrade }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
@@ -23,12 +22,12 @@ const NoCreditsModal: React.FC<NoCreditsModalProps> = ({ isOpen, onClose }) => {
             You have no credit please add more.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
-              href="/dashboard/upgrade" 
+            <button 
+              onClick={onUpgrade || (() => window.location.href = '/dashboard/upgrade')}
               className="bg-[#0052CC] hover:bg-[#0052CC]/80 text-white px-6 py-3 rounded-md font-medium transition-colors"
             >
               Add Credits
-            </Link>
+            </button>
             <button 
               onClick={onClose}
               className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-md font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
