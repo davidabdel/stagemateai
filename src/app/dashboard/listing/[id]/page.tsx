@@ -1,15 +1,17 @@
 import ClientPage from './ClientPage';
 
-export default function Page({ params }: { params: { id: string } }) {
-  // In Next.js 15, we need to pass the ID as a search parameter
-  // to avoid issues with the dynamic route parameter
+// In Next.js 15, we need to use a simpler approach without params typing
+export default function Page(props: any) {
+  // Extract the ID from the URL path segment
+  const id = props?.params?.id || '';
+  
   return (
     <div>
       <ClientPage />
       <script
         dangerouslySetInnerHTML={{
           __html: `
-            window.__LISTING_ID__ = "${params.id}";
+            window.__LISTING_ID__ = "${id}";
           `,
         }}
       />
