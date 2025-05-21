@@ -99,6 +99,10 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         console.log('Server: Preparing image for OpenAI API');
         const imageFile = await toFile(Buffer.from(imageBuffer), 'image.jpg', { type: 'image/jpeg' });
         console.log('Server: Image file created successfully');
+        
+        // Call the OpenAI Images Edit API using the SDK
+        console.log('Server: Calling OpenAI Images Edit API with gpt-image-1 model');
+        console.log('Server: Using prompt:', prompt);
         console.log('Server: Image file size:', imageFile.size, 'bytes');
         
         // Verify the image file is valid
