@@ -10,20 +10,33 @@ const openai = new OpenAI({
 });
 
 // IMPORTANT: This API route uses the OpenAI Images Edit API with gpt-image-1 model
+// Format follows the official documentation at https://platform.openai.com/docs/api-reference/images/create
 export async function POST(request: NextRequest) {
   try {
-    console.log('Server: Received request to generate image');
-    
     // Parse the request body
     const body = await request.json();
     const { imageUrl, roomType, styleNotes, userId } = body;
     
     // Check if userId is provided
     if (!userId) {
-      console.error('Server: User ID is required');
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      );
     }
-    
+
+    // Validate required fields
+    if (!imageUrl) {
+      return NextResponse.json(
+        { error: 'Image URL is required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('Server: Processing image generation request');
+    console.log('Server: Image URL:', imageUrl);
+    console.log('Server: Room Type:', roomType);
+    console.log('Server: Style Notes:', styleNotes);
     console.log('Server: User ID:', userId);
     
     // Check user credits
@@ -86,99 +99,115 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         console.log('Server: Preparing image for OpenAI API');
         const imageFile = await toFile(Buffer.from(imageBuffer), 'image.jpg', { type: 'image/jpeg' });
         console.log('Server: Image file created successfully');
+        console.log('Server: Image file size:', imageFile.size, 'bytes');
         
-        // Call the OpenAI Images Edit API using the SDK
-        console.log('Server: Calling OpenAI Images Edit API with gpt-image-1 model');
-        console.log('Server: Using prompt:', prompt);
-        
-        const response = await openai.images.edit({
-          model: "gpt-image-1",
-          image: imageFile,
-          prompt: prompt,
-          n: 1,
-          size: "1024x1024", // Using 1024x1024 size for optimal compatibility
-          quality: "high" // Request high-quality images for better downloads
-        });
-        
-        console.log('Server: OpenAI Images Edit API response received');
-        console.log('Server: OpenAI API response structure:', JSON.stringify(response, null, 2));
-        
-        // No temporary file to clean up with the new approach
-        
-        // Handle the response
-        if (response.data && response.data.length > 0) {
-          let generatedImageUrl;
-          
-          // Check if response contains a URL
-          if (response.data[0].url) {
-            generatedImageUrl = response.data[0].url;
-            console.log('Server: Generated image URL from direct URL');
-          } 
-          // Check if response contains base64 data
-          else if (response.data[0].b64_json) {
-            // Convert base64 to URL by creating a data URL
-            generatedImageUrl = `data:image/png;base64,${response.data[0].b64_json}`;
-            console.log('Server: Generated image URL from base64 data');
-          }
-          
-          if (generatedImageUrl) {
-            console.log('Server: Generated image URL:', generatedImageUrl.substring(0, 50) + '...');
-            
-            // Decrement user credits after successful image generation
-            const { photosRemaining, error: decrementError } = await decrementUserCredits(userId);
-            
-            if (decrementError) {
-              console.error('Server: Error decrementing user credits:', decrementError);
-              // Continue anyway since the image was generated successfully
-            } else {
-              console.log('Server: Credits decremented successfully. Remaining photos:', photosRemaining);
-            }
-            
-            // Store the generated image in the database
-            const { error: insertError } = await supabase
-              .from('generated_images')
-              .insert([
-                {
-                  user_id: userId,
-                  original_image_url: imageUrl,
-                  generated_image_url: generatedImageUrl,
-                  room_type: roomType || null,
-                  style_notes: styleNotes || null,
-                  prompt: prompt,
-                  created_at: new Date().toISOString()
-                }
-              ]);
-            
-            if (insertError) {
-              console.error('Server: Error storing generated image in database:', insertError);
-              // Continue anyway since the image was generated successfully
-            } else {
-              console.log('Server: Generated image stored in database');
-            }
-            
-            // Return the generated image URL
-            return NextResponse.json({ 
-              imageUrl: generatedImageUrl,
-              photosRemaining: photosRemaining !== undefined ? photosRemaining : (photosLimit - photosUsed - 1)
-            });
-          } else {
-            console.error('Server: No image URL or base64 data in response');
-            return NextResponse.json({ error: 'No image URL or base64 data in response' }, { status: 500 });
-          }
-        } else {
-          console.error('Server: No data in response');
-          return NextResponse.json({ error: 'No data in response' }, { status: 500 });
+        // Verify the image file is valid
+        if (!imageFile || imageFile.size === 0) {
+          throw new Error('Invalid image file: File is empty or corrupted');
         }
-      } catch (error) {
-        console.error('Server: Error generating image:', error);
-        return NextResponse.json({ error: 'Error generating image' }, { status: 500 });
+        
+        // Verify API key is set
+        if (!process.env.OPENAI_API_KEY) {
+          console.error('Server: OpenAI API key is not set');
+          throw new Error('OpenAI API key is not configured');
+        }
+        
+        try {
+          const openaiResponse = await openai.images.edit({
+            model: "gpt-image-1",
+            image: imageFile,
+            prompt: prompt,
+            n: 1,
+            size: "1024x1024",
+            quality: "high"
+          });
+          
+          console.log('Server: OpenAI API call successful');
+          
+          console.log('Server: OpenAI Images Edit API response received');
+          console.log('Server: OpenAI API response structure:', JSON.stringify(openaiResponse, null, 2));
+          
+          // No temporary file to clean up with the new approach
+          
+          // Handle the response
+          if (openaiResponse.data && openaiResponse.data.length > 0) {
+            let generatedImageUrl;
+            
+            // Check if response contains a URL
+            if (openaiResponse.data[0].url) {
+              generatedImageUrl = openaiResponse.data[0].url;
+              console.log('Server: Generated image URL from direct URL');
+            } 
+            // Check if response contains base64 data
+            else if (openaiResponse.data[0].b64_json) {
+              // Convert base64 to URL by creating a data URL
+              generatedImageUrl = `data:image/png;base64,${openaiResponse.data[0].b64_json}`;
+              console.log('Server: Generated image URL from base64 data');
+            }
+            
+            if (generatedImageUrl) {
+              console.log('Server: Generated image URL:', generatedImageUrl.substring(0, 50) + '...');
+              
+              // Decrement user credits after successful image generation
+              const { photosRemaining, error: decrementError } = await decrementUserCredits(userId);
+              
+              if (decrementError) {
+                console.error('Server: Error decrementing user credits:', decrementError);
+                // Continue anyway since the image was generated successfully
+              } else {
+                console.log('Server: Credits decremented successfully. Remaining photos:', photosRemaining);
+              }
+              
+              return NextResponse.json({ 
+                generatedImageUrl,
+                success: true,
+                photosRemaining
+              });
+            }
+          }
+          
+          // If we get here, the response structure was invalid
+          console.error('Server: Invalid response structure from OpenAI:', openaiResponse);
+          throw new Error('Invalid response structure from OpenAI API');
+        } catch (openaiError) {
+          console.error('Server: OpenAI API call failed:', openaiError);
+          
+          // Check for specific OpenAI error types
+          const errorMessage = openaiError instanceof Error ? openaiError.message : 'Unknown OpenAI error';
+          
+          if (errorMessage.includes('billing') || errorMessage.includes('exceeded your quota')) {
+            throw new Error('OpenAI API billing error: ' + errorMessage);
+          } else if (errorMessage.includes('invalid_api_key')) {
+            throw new Error('Invalid OpenAI API key');
+          } else if (errorMessage.includes('file format') || errorMessage.includes('image format')) {
+            throw new Error('Image format error: ' + errorMessage);
+          } else {
+            throw new Error('OpenAI API error: ' + errorMessage);
+          }
+        }
+        
+        // The response handling is now done inside the try block above
+
+      } catch (openaiError) {
+        console.error('Server: OpenAI API error:', openaiError);
+        throw openaiError;
       }
-    } catch (error) {
-      console.error('Server: Unexpected error:', error);
-      return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
+    } catch (apiError: unknown) {
+      console.error('Server: API error:', apiError);
+      
+      // For demo/development, return the original image as fallback
+      return NextResponse.json({ 
+        generatedImageUrl: imageUrl,
+        success: false,
+        error: apiError instanceof Error ? apiError.message : 'Failed to generate image'
+      });
     }
-  } catch (error) {
-    console.error('Server: Unexpected error:', error);
-    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
+  } catch (error: unknown) {
+    console.error('Server: Error in API route:', error);
+    
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
