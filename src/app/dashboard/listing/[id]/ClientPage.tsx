@@ -22,11 +22,21 @@ export default function ClientPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // Extract ID from URL path
+  // Extract ID from URL path or from window object
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Try to get the ID from the window object first (set by the page component)
+      if ((window as any).__LISTING_ID__) {
+        const listingId = (window as any).__LISTING_ID__;
+        console.log('Using listing ID from window object:', listingId);
+        setId(listingId);
+        return;
+      }
+      
+      // Fallback to extracting from URL path
       const pathSegments = window.location.pathname.split('/');
       const listingId = pathSegments[pathSegments.length - 1];
+      console.log('Extracted listing ID from URL path:', listingId);
       setId(listingId);
     }
   }, []);
@@ -89,7 +99,11 @@ export default function ClientPage() {
   }
   
   useEffect(() => {
-    // ID is now passed as a prop and will always be available
+    // Only fetch data when ID is available
+    if (!id) return;
+    
+    console.log('Fetching data for listing ID:', id);
+    
     async function fetchData() {
       try {
         // Check if user is authenticated
@@ -105,14 +119,18 @@ export default function ClientPage() {
         fetchUserCredits(currentUser.id);
         
         // Get listing details directly from Supabase
+        console.log('Querying Supabase for listing with ID:', id);
         const { data: listingData, error: listingError } = await supabase
           .from('listings')
           .select('*')
           .eq('id', id)
           .single();
         
+        console.log('Listing query result:', listingData, listingError);
+        
         if (listingError) {
-          setError('Listing not found');
+          console.error('Error fetching listing:', listingError);
+          setError(`Listing not found (ID: ${id}). Error: ${listingError.message}`);
           setIsLoading(false);
           return;
         }
