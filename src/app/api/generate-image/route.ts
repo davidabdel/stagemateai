@@ -9,6 +9,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Log OpenAI API key status (not the actual key)
+console.log('Server: OpenAI API key status:', process.env.OPENAI_API_KEY ? 'Configured' : 'Not configured');
+
 // IMPORTANT: This API route uses the OpenAI Images Edit API with gpt-image-1 model
 // Format follows the official documentation at https://platform.openai.com/docs/api-reference/images/create
 export async function POST(request: NextRequest) {
@@ -85,20 +88,58 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
       
       try {
         // Download the image from the URL
-        console.log('Server: Downloading image from URL');
-        const imageResponse = await fetch(imageUrl);
-        if (!imageResponse.ok) {
-          throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+        console.log('Server: Downloading image from URL:', imageUrl);
+        let imageResponse;
+        try {
+          imageResponse = await fetch(imageUrl, {
+            // Add cache control to avoid potential caching issues
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+            }
+          });
+          
+          if (!imageResponse.ok) {
+            throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+          }
+          
+          console.log('Server: Image fetch response status:', imageResponse.status);
+          console.log('Server: Image fetch response headers:', JSON.stringify(Object.fromEntries(imageResponse.headers.entries())));
+        } catch (fetchError) {
+          console.error('Server: Error fetching image:', fetchError);
+          throw new Error(`Failed to fetch image: ${fetchError instanceof Error ? fetchError.message : 'Unknown fetch error'}`);
         }
         
         // Get the image as a buffer
-        const imageBuffer = await imageResponse.arrayBuffer();
-        console.log('Server: Image downloaded, buffer size:', imageBuffer.byteLength);
+        let imageBuffer;
+        try {
+          imageBuffer = await imageResponse.arrayBuffer();
+          console.log('Server: Image downloaded, buffer size:', imageBuffer.byteLength);
+          
+          // Validate buffer size
+          if (imageBuffer.byteLength === 0) {
+            throw new Error('Downloaded image has zero size');
+          }
+        } catch (bufferError) {
+          console.error('Server: Error getting image buffer:', bufferError);
+          throw new Error(`Failed to process image buffer: ${bufferError instanceof Error ? bufferError.message : 'Unknown buffer error'}`);
+        }
         
         // Create a file object directly from the buffer for the OpenAI API
         console.log('Server: Preparing image for OpenAI API');
-        const imageFile = await toFile(Buffer.from(imageBuffer), 'image.jpg', { type: 'image/jpeg' });
-        console.log('Server: Image file created successfully');
+        let imageFile;
+        try {
+          imageFile = await toFile(Buffer.from(imageBuffer), 'image.jpg', { type: 'image/jpeg' });
+          console.log('Server: Image file created successfully, file size:', imageFile.size, 'bytes');
+          
+          // Additional validation
+          if (!imageFile || imageFile.size === 0) {
+            throw new Error('Created file is invalid or empty');
+          }
+        } catch (fileError) {
+          console.error('Server: Error creating file from buffer:', fileError);
+          throw new Error(`Failed to create image file: ${fileError instanceof Error ? fileError.message : 'Unknown file error'}`);
+        }
         
         // Call the OpenAI Images Edit API using the SDK
         console.log('Server: Calling OpenAI Images Edit API with gpt-image-1 model');
@@ -117,6 +158,17 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         }
         
         try {
+          console.log('Server: Sending request to OpenAI with model: gpt-image-1');
+          console.log('Server: OpenAI request parameters:', {
+            model: "gpt-image-1",
+            // Don't log the actual image file
+            imageFileSize: imageFile.size,
+            promptLength: prompt.length,
+            n: 1,
+            size: "1024x1024",
+            quality: "high"
+          });
+          
           const openaiResponse = await openai.images.edit({
             model: "gpt-image-1",
             image: imageFile,
@@ -176,6 +228,24 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         } catch (openaiError) {
           console.error('Server: OpenAI API call failed:', openaiError);
           
+          // Log detailed error information
+          if (openaiError instanceof Error) {
+            console.error('Server: OpenAI error name:', openaiError.name);
+            console.error('Server: OpenAI error message:', openaiError.message);
+            console.error('Server: OpenAI error stack:', openaiError.stack);
+            
+            // Check if it's an OpenAI API error with additional details
+            if ('status' in openaiError) {
+              console.error('Server: OpenAI API error status:', (openaiError as any).status);
+            }
+            if ('headers' in openaiError) {
+              console.error('Server: OpenAI API error headers:', (openaiError as any).headers);
+            }
+            if ('error' in openaiError) {
+              console.error('Server: OpenAI API error details:', (openaiError as any).error);
+            }
+          }
+          
           // Check for specific OpenAI error types
           const errorMessage = openaiError instanceof Error ? openaiError.message : 'Unknown OpenAI error';
           
@@ -185,6 +255,10 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
             throw new Error('Invalid OpenAI API key');
           } else if (errorMessage.includes('file format') || errorMessage.includes('image format')) {
             throw new Error('Image format error: ' + errorMessage);
+          } else if (errorMessage.includes('rate limit')) {
+            throw new Error('OpenAI API rate limit exceeded: ' + errorMessage);
+          } else if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
+            throw new Error('OpenAI API request timed out: ' + errorMessage);
           } else {
             throw new Error('OpenAI API error: ' + errorMessage);
           }
@@ -194,16 +268,29 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
 
       } catch (openaiError) {
         console.error('Server: OpenAI API error:', openaiError);
-        throw openaiError;
+        // Include more context in the error
+        if (openaiError instanceof Error) {
+          throw new Error(`OpenAI processing error: ${openaiError.message}`);
+        } else {
+          throw new Error(`OpenAI processing error: ${String(openaiError)}`);
+        }
       }
     } catch (apiError: unknown) {
       console.error('Server: API error:', apiError);
       
-      // For demo/development, return the original image as fallback
+      // Log more details about the error
+      if (apiError instanceof Error) {
+        console.error('Server: Error name:', apiError.name);
+        console.error('Server: Error message:', apiError.message);
+        console.error('Server: Error stack:', apiError.stack);
+      }
+      
+      // For demo/development, return the original image as fallback with detailed error
       return NextResponse.json({ 
         generatedImageUrl: imageUrl,
         success: false,
-        error: apiError instanceof Error ? apiError.message : 'Failed to generate image'
+        error: apiError instanceof Error ? apiError.message : 'Failed to generate image',
+        errorDetails: apiError instanceof Error ? { name: apiError.name, stack: apiError.stack } : { info: String(apiError) }
       });
     }
   } catch (error: unknown) {
