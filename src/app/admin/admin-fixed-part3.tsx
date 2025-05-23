@@ -11,17 +11,36 @@
 import React, { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
+// Define types for videos and FAQs
+interface Video {
+  id: string;
+  title: string;
+  description: string;
+  videoId: string;
+  thumbnail: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Sample component to demonstrate the fetch functions
 export default function FetchFunctionsSample() {
   // These state variables would be defined in your actual component
-  const [videos, setVideos] = useState([]);
-  const [faqs, setFaqs] = useState([]);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [faqs, setFaqs] = useState<FAQ[]>([]);
   
   // Mock Supabase client for demonstration
   const supabase = createClient('https://your-project-url.supabase.co', 'your-anon-key');
   
-  // Import default data from part1
-  const defaultVideoTutorials = [
+  // Default video tutorials in case database fetch fails
+  const defaultVideoTutorials: Video[] = [
     {
       id: '1',
       title: 'Getting Started with StageMate AI',
@@ -38,7 +57,8 @@ export default function FetchFunctionsSample() {
     }
   ];
   
-  const defaultFaqItems = [
+  // Default FAQ items in case database fetch fails
+  const defaultFaqItems: FAQ[] = [
     {
       id: '1',
       question: 'How do I create my first image?',
@@ -69,7 +89,7 @@ export default function FetchFunctionsSample() {
       }
       
       if (videosData && videosData.length > 0) {
-        setVideos(videosData);
+        setVideos(videosData as Video[]);
       } else {
         // No data in Supabase, use defaults
         console.log('No videos found in Supabase, using defaults');
@@ -100,7 +120,7 @@ export default function FetchFunctionsSample() {
       }
       
       if (faqsData && faqsData.length > 0) {
-        setFaqs(faqsData);
+        setFaqs(faqsData as FAQ[]);
       } else {
         // No data in Supabase, use defaults
         console.log('No FAQs found in Supabase, using defaults');
