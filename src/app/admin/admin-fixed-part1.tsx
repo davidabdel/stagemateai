@@ -1,31 +1,28 @@
-"use client";
+// This file contains the default video and FAQ data
+// It is not meant to be imported or used directly
+// The full implementation is in admin-fixed.tsx
 
-import React, { useState, useEffect } from "react";
-import Link from "next/link";
-import { supabase } from "@/utils/supabaseClient";
-import toast, { Toaster } from "react-hot-toast";
-import { Suspense } from "react";
+/*
+ * SAMPLE CODE - NOT FOR DIRECT IMPORT
+ * This is a code sample showing the default data for videos and FAQs
+ * To use this code, copy the relevant parts to your admin-fixed.tsx file
+ */
 
-// Default video tutorials in case database fetch fails
-const defaultVideoTutorials = [
-  {
-    id: '1',
-    title: 'Getting Started with StageMate AI',
-    description: 'Learn the basics of using StageMate AI to create stunning product images.',
-    videoId: 'jO0ILN23L-g', 
-    thumbnail: 'https://i9.ytimg.com/vi/jO0ILN23L-g/mqdefault.jpg?sqp=CKDUgMEG-oaymwEmCMACELQB8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGBogNyh_MA8=&rs=AOn4CLBWg5O4NBRRpwZhkIRzi6sSi7SneA'
-  },
-  {
-    id: '2',
-    title: 'Dont List an Empty Home',
-    description: 'Turn your empty home into a staged home with StageMate AI.',
-    videoId: 's_ZeJZx4_n8',
-    thumbnail: 'https://i9.ytimg.com/vi/s_ZeJZx4_n8/mqdefault.jpg?sqp=CKDUgMEG-oaymwEmCMACELQB8quKqQMa8AEB-AHwB4AC0AWKAgwIABABGGUgWyhEMA8=&rs=AOn4CLCEqM3klHLeBpjiJUdDJT5zBgwFVg'
-  }
-];
+import React from 'react';
+
+// Sample component to demonstrate default data usage
+export default function DefaultDataSample() {
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-4">Default Data Sample</h1>
+      <p className="mb-4">This file contains the default video and FAQ data used when Supabase tables don't exist.</p>
+      <p className="mb-4">To use this code, copy the defaultVideoTutorials and defaultFaqItems arrays to your admin-fixed.tsx file.</p>
+    </div>
+  );
+}
 
 // Default FAQ items in case database fetch fails
-const defaultFaqItems = [
+export const defaultFaqItems = [
   {
     id: '1',
     question: 'How do I create my first image?',
@@ -58,20 +55,20 @@ const defaultFaqItems = [
   }
 ];
 
-// This is a placeholder file to show the key changes
-// The full implementation is in admin-fixed.tsx
-export default function AdminDashboardPlaceholder() {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
-      <p className="mb-4">This is a placeholder file to show the key changes made to the admin dashboard:</p>
-      <ul className="list-disc pl-6 mb-6">
-        <li>Added default video tutorials and FAQs when tables don't exist</li>
-        <li>Fixed user credits update in Supabase</li>
-        <li>Added dedicated API endpoint for updating credits</li>
-        <li>Fixed user dropdown to show all users</li>
-      </ul>
-      <p>The full implementation is in the admin-fixed.tsx file.</p>
-    </div>
-  );
-}
+// Default video tutorials in case database fetch fails
+export const defaultVideoTutorials = [
+  {
+    id: '1',
+    title: 'Getting Started with StageMate AI',
+    description: 'Learn the basics of using StageMate AI to create stunning product images.',
+    videoId: 'jO0ILN23L-g', // Replace with your actual YouTube video ID
+    thumbnail: 'https://i9.ytimg.com/vi/jO0ILN23L-g/mqdefault.jpg?sqp=CKDUgMEG-oaymwEmCMACELQB8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGBogNyh_MA8=&rs=AOn4CLBWg5O4NBRRpwZhkIRzi6sSi7SneA' // Replace with your actual thumbnail path
+  },
+  {
+    id: '2',
+    title: 'Dont List an Empty Home',
+    description: 'Turn your empty home into a staged home with StageMate AI.',
+    videoId: 's_ZeJZx4_n8', // Replace with your actual YouTube video ID
+    thumbnail: 'https://i9.ytimg.com/vi/s_ZeJZx4_n8/mqdefault.jpg?sqp=CKDUgMEG-oaymwEmCMACELQB8quKqQMa8AEB-AHwB4AC0AWKAgwIABABGGUgWyhEMA8=&rs=AOn4CLCEqM3klHLeBpjiJUdDJT5zBgwFVg' // Replace with your actual thumbnail path
+  }
+];
