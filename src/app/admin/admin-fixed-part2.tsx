@@ -12,6 +12,16 @@ import React from 'react';
 import { supabase } from '@/utils/supabaseClient';
 import toast from 'react-hot-toast';
 
+// Define user credit type
+interface UserCredit {
+  user_id: string;
+  email: string;
+  photos_limit: number;
+  plan_type: string;
+  updated_at: string;
+  [key: string]: any; // For any other properties
+}
+
 // Sample component to demonstrate the credit management functionality
 export default function CreditManagementSample() {
   // These state variables would be defined in your actual component
@@ -19,8 +29,16 @@ export default function CreditManagementSample() {
   const [creditsToAdd, setCreditsToAdd] = React.useState(50);
   const [planType, setPlanType] = React.useState('standard');
   const [isAddingCredits, setIsAddingCredits] = React.useState(false);
-  const [userCredits, setUserCredits] = React.useState([]);
-  const [selectedUserDetails, setSelectedUserDetails] = React.useState(null);
+  const [userCredits, setUserCredits] = React.useState<UserCredit[]>([
+    {
+      user_id: 'user1',
+      email: 'user1@example.com',
+      photos_limit: 100,
+      plan_type: 'standard',
+      updated_at: new Date().toISOString()
+    }
+  ]);
+  const [selectedUserDetails, setSelectedUserDetails] = React.useState<UserCredit | null>(null);
   
   // Mock function to simulate fetchData
   const fetchData = async () => {
