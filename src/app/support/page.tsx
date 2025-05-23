@@ -140,18 +140,47 @@ export default function SupportPage() {
       return;
     }
     
-    // Here you would typically send the form data to your backend
-    // For now, we'll just simulate a successful submission
-    setFormStatus({
-      success: true,
-      message: 'Your message has been sent. We\'ll get back to you soon!'
-    });
-    
-    // Reset form
-    setName('');
-    setEmail('');
-    setSubject('');
-    setMessage('');
+    try {
+      // Send the form data to our webhook API endpoint
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          subject,
+          message,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setFormStatus({
+          success: true,
+          message: 'Your message has been sent. We\'ll get back to you soon!'
+        });
+        
+        // Reset form
+        setName('');
+        setEmail('');
+        setSubject('');
+        setMessage('');
+      } else {
+        setFormStatus({
+          success: false,
+          message: data.message || 'Failed to send message. Please try again later.'
+        });
+      }
+    } catch (error) {
+      console.error('Error sending contact form:', error);
+      setFormStatus({
+        success: false,
+        message: 'An error occurred. Please try again later.'
+      });
+    }
   };
 
   // YouTube video component with Suspense
