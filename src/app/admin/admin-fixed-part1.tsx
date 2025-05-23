@@ -10,6 +10,25 @@
 
 import React from 'react';
 
+// Define types for videos and FAQs
+interface Video {
+  id: string;
+  title: string;
+  description: string;
+  videoId: string;
+  thumbnail: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Sample component to demonstrate default data usage
 export default function DefaultDataSample() {
   return (
@@ -22,7 +41,7 @@ export default function DefaultDataSample() {
 }
 
 // Default FAQ items in case database fetch fails
-export const defaultFaqItems = [
+export const defaultFaqItems: FAQ[] = [
   {
     id: '1',
     question: 'How do I create my first image?',
@@ -56,7 +75,7 @@ export const defaultFaqItems = [
 ];
 
 // Default video tutorials in case database fetch fails
-export const defaultVideoTutorials = [
+export const defaultVideoTutorials: Video[] = [
   {
     id: '1',
     title: 'Getting Started with StageMate AI',
