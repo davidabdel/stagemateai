@@ -1,56 +1,590 @@
-// Static admin page with no client-side JavaScript
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/utils/supabaseClient';
+import toast, { Toaster } from 'react-hot-toast';
+
+// Define types for our data
+interface UserCredit {
+  user_id: string;
+  email?: string;
+  photos_limit?: number;
+  plan_type?: string;
+  updated_at?: string;
+  [key: string]: any; // Allow for additional properties
+}
+
+interface VideoTutorial {
+  id: string;
+  title: string;
+  description: string;
+  videoId: string;
+  thumbnail?: string;
+}
+
+interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+// Default video tutorials in case database fetch fails
+const defaultVideoTutorials: VideoTutorial[] = [
+  {
+    id: '1',
+    title: 'Getting Started with StageMate AI',
+    description: 'Learn the basics of using StageMate AI to create stunning product images.',
+    videoId: 'jO0ILN23L-g',
+    thumbnail: 'https://i.ytimg.com/vi/jO0ILN23L-g/mqdefault.jpg'
+  },
+  {
+    id: '2',
+    title: 'Dont List an Empty Home',
+    description: 'Turn your empty home into a staged home with StageMate AI.',
+    videoId: 's_ZeJZx4_n8',
+    thumbnail: 'https://i.ytimg.com/vi/s_ZeJZx4_n8/mqdefault.jpg'
+  }
+];
+
+// Default FAQ items in case database fetch fails
+const defaultFaqItems: FaqItem[] = [
+  {
+    id: '1',
+    question: 'How do I create my first image?',
+    answer: 'Navigate to the dashboard, click on "Create New Image", upload your product image, and follow the prompts to generate your staged image.'
+  },
+  {
+    id: '2',
+    question: 'What file formats are supported?',
+    answer: 'We support JPG, PNG, and WEBP formats. For best results, use high-resolution images with clear product visibility.'
+  },
+  {
+    id: '3',
+    question: 'How many credits do I need per image?',
+    answer: 'Each image generation uses 1 credit. The number of credits you have depends on your subscription plan.'
+  }
+];
+
 export default function AdminPage() {
+  const [activeTab, setActiveTab] = useState('users');
+  const [userCredits, setUserCredits] = useState<UserCredit[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedUserDetails, setSelectedUserDetails] = useState<UserCredit | null>(null);
+  const [creditsToAdd, setCreditsToAdd] = useState(50);
+  const [planType, setPlanType] = useState('standard');
+  const [isAddingCredits, setIsAddingCredits] = useState(false);
+  const [totalUsers, setTotalUsers] = useState(3);
+  const [totalImages, setTotalImages] = useState(120);
+  const [totalCredits, setTotalCredits] = useState(350);
+  const [videos, setVideos] = useState<VideoTutorial[]>(defaultVideoTutorials);
+  const [faqs, setFaqs] = useState<FaqItem[]>(defaultFaqItems);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      fetchData().catch(err => {
+        console.error('Error in fetchData effect:', err);
+        setError('Failed to load dashboard data. Please try again later.');
+      });
+    } catch (err) {
+      console.error('Error in useEffect:', err);
+      setError('Failed to initialize dashboard. Please try again later.');
+    }
+  }, []);
+
+  async function fetchData() {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Fetch user credits from Supabase with error handling
+      try {
+        const { data: userCreditsData, error: userCreditsError } = await supabase
+          .from('user_credits')
+          .select('*');
+        
+        if (userCreditsError) {
+          console.error('Error fetching user credits:', userCreditsError);
+          toast.error('Failed to fetch user data');
+        } else if (userCreditsData && Array.isArray(userCreditsData) && userCreditsData.length > 0) {
+          // Make sure we have valid data before setting state
+          const validUserData = userCreditsData.filter(user => user && typeof user === 'object' && user.user_id);
+          setUserCredits(validUserData as UserCredit[]);
+          setTotalUsers(validUserData.length);
+          
+          // Calculate total credits across all users with null checks
+          const totalCreditsSum = validUserData.reduce((sum, user) => {
+            const limit = user && user.photos_limit ? Number(user.photos_limit) : 0;
+            return sum + (isNaN(limit) ? 0 : limit);
+          }, 0);
+          
+          setTotalCredits(totalCreditsSum);
+          
+          // Set first user as selected by default if none is selected
+          if (!selectedUserId && validUserData.length > 0) {
+            setSelectedUserId(validUserData[0].user_id);
+            setSelectedUserDetails(validUserData[0] as UserCredit);
+          }
+        }
+      } catch (error) {
+        console.error('Error in user credits fetch:', error);
+        // Continue with other fetches even if this one fails
+      }
+      
+      // Fetch total images with error handling
+      try {
+        const { count: imagesCount, error: imagesError } = await supabase
+          .from('images')
+          .select('*', { count: 'exact', head: true });
+        
+        if (!imagesError && imagesCount !== null) {
+          setTotalImages(imagesCount);
+        }
+      } catch (error) {
+        console.error('Error fetching images count:', error);
+        // Continue with default values
+      }
+      
+      // Fetch videos and FAQs
+      await Promise.allSettled([
+        fetchVideos(),
+        fetchFaqs()
+      ]);
+      
+    } catch (error) {
+      console.error('Error in fetchData:', error);
+      toast.error('Failed to fetch dashboard data');
+      setError('Error loading dashboard data');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // Fetch videos from API
+  async function fetchVideos() {
+    try {
+      const { data: videosData, error: videosError } = await supabase
+        .from('videos')
+        .select('*')
+        .order('id', { ascending: true });
+      
+      if (videosError) {
+        console.error('Error fetching videos:', videosError);
+        setVideos(defaultVideoTutorials);
+      } else if (videosData && Array.isArray(videosData) && videosData.length > 0) {
+        // Validate video data
+        const validVideos = videosData.filter(video => 
+          video && typeof video === 'object' && video.id && video.title && video.videoId
+        );
+        
+        if (validVideos.length > 0) {
+          setVideos(validVideos as VideoTutorial[]);
+        } else {
+          setVideos(defaultVideoTutorials);
+        }
+      } else {
+        setVideos(defaultVideoTutorials);
+      }
+    } catch (error) {
+      console.error('Error fetching videos:', error);
+      setVideos(defaultVideoTutorials);
+    }
+  }
+
+  // Fetch FAQs from API
+  async function fetchFaqs() {
+    try {
+      const { data: faqsData, error: faqsError } = await supabase
+        .from('faqs')
+        .select('*')
+        .order('id', { ascending: true });
+      
+      if (faqsError) {
+        console.error('Error fetching FAQs:', faqsError);
+        setFaqs(defaultFaqItems);
+      } else if (faqsData && Array.isArray(faqsData) && faqsData.length > 0) {
+        // Validate FAQ data
+        const validFaqs = faqsData.filter(faq => 
+          faq && typeof faq === 'object' && faq.id && faq.question && faq.answer
+        );
+        
+        if (validFaqs.length > 0) {
+          setFaqs(validFaqs as FaqItem[]);
+        } else {
+          setFaqs(defaultFaqItems);
+        }
+      } else {
+        setFaqs(defaultFaqItems);
+      }
+    } catch (error) {
+      console.error('Error fetching FAQs:', error);
+      setFaqs(defaultFaqItems);
+    }
+  }
+
+  // Handle user selection
+  const handleUserSelect = (userId: string) => {
+    if (!userId) return;
+    
+    const user = userCredits.find(u => u && u.user_id === userId);
+    setSelectedUserId(userId);
+    setSelectedUserDetails(user || null);
+  };
+
+  // Handle adding credits to a user
+  const handleAddCredits = async () => {
+    if (!selectedUserId) {
+      toast.error('Please select a user');
+      return;
+    }
+    
+    if (isNaN(creditsToAdd) || creditsToAdd <= 0) {
+      toast.error('Please enter a valid number of credits');
+      return;
+    }
+    
+    try {
+      setIsAddingCredits(true);
+      toast.loading('Adding credits...');
+      
+      // Find the user in our data
+      const userIndex = userCredits.findIndex(user => user && user.user_id === selectedUserId);
+      
+      if (userIndex === -1) {
+        throw new Error('User not found');
+      }
+      
+      // Get the current user
+      const currentUser = userCredits[userIndex];
+      
+      if (!currentUser || !currentUser.email) {
+        throw new Error('User email not found');
+      }
+      
+      // Use our dedicated API endpoint to update credits
+      const response = await fetch('/api/admin/update-credits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: currentUser.email,
+          credits: creditsToAdd,
+          planType: planType
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(`API error: ${errorData.message || response.statusText || 'Unknown error'}`);
+      }
+      
+      const result = await response.json().catch(() => ({ success: false, message: 'Failed to parse response' }));
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Unknown error updating credits');
+      }
+      
+      // Calculate new limit based on API response
+      const newLimit = result.after && result.after.credits ? result.after.credits : 
+                      (currentUser.photos_limit || 0) + creditsToAdd;
+      
+      // Create updated user object for local state
+      const updatedUser = {
+        ...currentUser,
+        photos_limit: newLimit,
+        plan_type: (result.after && result.after.plan) ? result.after.plan : (planType || 'standard'),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Update the user in our local state
+      const updatedUserCredits = [...userCredits];
+      updatedUserCredits[userIndex] = updatedUser;
+      
+      // Update state
+      setUserCredits(updatedUserCredits);
+      
+      // Update selected user details if this is the currently selected user
+      if (selectedUserDetails && selectedUserDetails.user_id === selectedUserId) {
+        setSelectedUserDetails(updatedUser);
+      }
+      
+      toast.dismiss();
+      
+      const beforeCredits = result.before && result.before.credits !== undefined ? 
+                           result.before.credits : (currentUser.photos_limit || 0);
+      const afterCredits = result.after && result.after.credits !== undefined ? 
+                          result.after.credits : newLimit;
+                          
+      toast.success(`Added ${creditsToAdd} credits to user. Previous: ${beforeCredits}, New: ${afterCredits}`);
+      
+      // Refresh data to ensure we have the latest from the database
+      fetchData().catch(err => {
+        console.error('Error refreshing data after credit update:', err);
+      });
+    } catch (error) {
+      console.error('Error adding credits:', error);
+      toast.dismiss();
+      toast.error(`Failed to add credits: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsAddingCredits(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      <Toaster position="top-right" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <a 
-            href="/admin" 
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-          >
-            Refresh Data
-          </a>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
+          <div className="flex space-x-4">
+            <button
+              onClick={() => fetchData().catch(err => console.error('Error refreshing data:', err))}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+            >
+              Refresh Data
+            </button>
+          </div>
         </div>
 
-        {/* Stats Cards - Static data */}
+        {error && (
+          <div className="mb-8 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
+            <p>{error}</p>
+            <button 
+              onClick={() => fetchData().catch(err => console.error('Error retrying data fetch:', err))}
+              className="mt-2 px-3 py-1 bg-red-200 text-red-800 rounded-md hover:bg-red-300"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-500 mb-2">Total Users</h3>
-            <p className="text-3xl font-bold text-gray-900">3</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-500 dark:text-gray-400 mb-2">Total Users</h3>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalUsers}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-500 mb-2">Total Images</h3>
-            <p className="text-3xl font-bold text-gray-900">120</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-500 dark:text-gray-400 mb-2">Total Images</h3>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalImages}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-500 mb-2">Total Credits</h3>
-            <p className="text-3xl font-bold text-gray-900">350</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-500 dark:text-gray-400 mb-2">Total Credits</h3>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalCredits}</p>
           </div>
         </div>
 
-        {/* Maintenance Message */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-            <div className="flex">
-              <div className="ml-3">
-                <h3 className="text-lg font-medium text-yellow-800">Admin Dashboard Maintenance</h3>
-                <div className="mt-2 text-yellow-700">
-                  <p>
-                    The admin dashboard is currently undergoing maintenance to fix the following issues:
-                  </p>
-                  <ul className="list-disc pl-5 mt-2 space-y-1">
-                    <li>User credits update functionality in Supabase</li>
-                    <li>Contact form webhook integration</li>
-                    <li>Default FAQs and videos display when tables don't exist</li>
-                    <li>User dropdown display showing all users correctly</li>
-                  </ul>
-                  <p className="mt-3">
-                    These improvements will be available soon. Thank you for your patience.
-                  </p>
+        {/* Tabs */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-8">
+          <div className="border-b border-gray-200 dark:border-gray-700">
+            <nav className="flex -mb-px">
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                  activeTab === 'users'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
+              >
+                User Management
+              </button>
+              <button
+                onClick={() => setActiveTab('videos')}
+                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                  activeTab === 'videos'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
+              >
+                Video Tutorials
+              </button>
+              <button
+                onClick={() => setActiveTab('faqs')}
+                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                  activeTab === 'faqs'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
+              >
+                FAQs
+              </button>
+            </nav>
+          </div>
+
+          <div className="p-6">
+            {/* User Management Tab */}
+            {activeTab === 'users' && (
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* User List */}
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Users</h3>
+                    {isLoading ? (
+                      <div className="flex justify-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                      </div>
+                    ) : userCredits.length > 0 ? (
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {userCredits.map((user) => (
+                          <button
+                            key={user.user_id}
+                            onClick={() => handleUserSelect(user.user_id)}
+                            className={`w-full text-left p-3 rounded-md ${
+                              selectedUserId === user.user_id
+                                ? 'bg-blue-100 dark:bg-blue-900'
+                                : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            <p className="font-medium text-gray-900 dark:text-white">{user.email || 'Unknown User'}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Credits: {user.photos_limit || 0} | Plan: {user.plan_type || 'standard'}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 dark:text-gray-400">No users found</p>
+                    )}
+                  </div>
+
+                  {/* User Details */}
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">User Details</h3>
+                    {selectedUserDetails ? (
+                      <div>
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">User ID</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.user_id}</p>
+                        </div>
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.email || 'Unknown'}</p>
+                        </div>
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Credits</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.photos_limit || 0}</p>
+                        </div>
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Plan Type</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{selectedUserDetails.plan_type || 'standard'}</p>
+                        </div>
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated</p>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {selectedUserDetails.updated_at
+                              ? new Date(selectedUserDetails.updated_at).toLocaleString()
+                              : 'Never'}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 dark:text-gray-400">Select a user to view details</p>
+                    )}
+                  </div>
+
+                  {/* Add Credits */}
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Add Credits</h3>
+                    {selectedUserDetails ? (
+                      <div>
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Credits to Add
+                          </label>
+                          <input
+                            type="number"
+                            value={creditsToAdd}
+                            onChange={(e) => setCreditsToAdd(parseInt(e.target.value) || 0)}
+                            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Plan Type
+                          </label>
+                          <select
+                            value={planType}
+                            onChange={(e) => setPlanType(e.target.value)}
+                            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          >
+                            <option value="standard">Standard</option>
+                            <option value="premium">Premium</option>
+                            <option value="enterprise">Enterprise</option>
+                          </select>
+                        </div>
+                        <button
+                          onClick={handleAddCredits}
+                          disabled={isAddingCredits}
+                          className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isAddingCredits ? 'Adding...' : 'Add Credits'}
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 dark:text-gray-400">Select a user to add credits</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Video Tutorials Tab */}
+            {activeTab === 'videos' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Video Tutorials</h3>
+                </div>
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {videos.map((video) => (
+                      <div key={video.id} className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                        <div className="relative pt-[56.25%]">
+                          <iframe
+                            src={`https://www.youtube.com/embed/${video.videoId}`}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            className="absolute top-0 left-0 w-full h-full"
+                          ></iframe>
+                        </div>
+                        <div className="p-4">
+                          <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{video.title}</h4>
+                          <p className="text-gray-500 dark:text-gray-400">{video.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* FAQs Tab */}
+            {activeTab === 'faqs' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Frequently Asked Questions</h3>
+                </div>
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {faqs.map((faq) => (
+                      <div key={faq.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{faq.question}</h4>
+                        <p className="text-gray-500 dark:text-gray-400">{faq.answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
