@@ -35,14 +35,14 @@ const defaultVideoTutorials: VideoTutorial[] = [
     title: 'Getting Started with StageMate AI',
     description: 'Learn the basics of using StageMate AI to create stunning product images.',
     videoId: 'jO0ILN23L-g',
-    thumbnail: 'https://i9.ytimg.com/vi/jO0ILN23L-g/mqdefault.jpg?sqp=CKDUgMEG-oaymwEmCMACELQB8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGBogNyh_MA8=&rs=AOn4CLBWg5O4NBRRpwZhkIRzi6sSi7SneA'
+    thumbnail: 'https://i.ytimg.com/vi/jO0ILN23L-g/mqdefault.jpg'
   },
   {
     id: '2',
     title: 'Dont List an Empty Home',
     description: 'Turn your empty home into a staged home with StageMate AI.',
     videoId: 's_ZeJZx4_n8',
-    thumbnail: 'https://i9.ytimg.com/vi/s_ZeJZx4_n8/mqdefault.jpg?sqp=CKDUgMEG-oaymwEmCMACELQB8quKqQMa8AEB-AHwB4AC0AWKAgwIABABGGUgWyhEMA8=&rs=AOn4CLCEqM3klHLeBpjiJUdDJT5zBgwFVg'
+    thumbnail: 'https://i.ytimg.com/vi/s_ZeJZx4_n8/mqdefault.jpg'
   }
 ];
 
@@ -79,54 +79,83 @@ export default function AdminPage() {
   const [videos, setVideos] = useState<VideoTutorial[]>(defaultVideoTutorials);
   const [faqs, setFaqs] = useState<FaqItem[]>(defaultFaqItems);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchData();
+    try {
+      fetchData().catch(err => {
+        console.error('Error in fetchData effect:', err);
+        setError('Failed to load dashboard data. Please try again later.');
+      });
+    } catch (err) {
+      console.error('Error in useEffect:', err);
+      setError('Failed to initialize dashboard. Please try again later.');
+    }
   }, []);
 
   async function fetchData() {
     try {
       setIsLoading(true);
+      setError(null);
       
-      // Fetch user credits from Supabase
-      const { data: userCreditsData, error: userCreditsError } = await supabase
-        .from('user_credits')
-        .select('*');
-      
-      if (userCreditsError) {
-        console.error('Error fetching user credits:', userCreditsError);
-        toast.error('Failed to fetch user data');
-      } else if (userCreditsData && userCreditsData.length > 0) {
-        setUserCredits(userCreditsData as UserCredit[]);
-        setTotalUsers(userCreditsData.length);
+      // Fetch user credits from Supabase with error handling
+      try {
+        const { data: userCreditsData, error: userCreditsError } = await supabase
+          .from('user_credits')
+          .select('*');
         
-        // Calculate total credits across all users
-        const totalCreditsSum = userCreditsData.reduce((sum, user) => sum + (user.photos_limit || 0), 0);
-        setTotalCredits(totalCreditsSum);
-        
-        // Set first user as selected by default if none is selected
-        if (!selectedUserId && userCreditsData.length > 0) {
-          setSelectedUserId(userCreditsData[0].user_id);
-          setSelectedUserDetails(userCreditsData[0] as UserCredit);
+        if (userCreditsError) {
+          console.error('Error fetching user credits:', userCreditsError);
+          toast.error('Failed to fetch user data');
+        } else if (userCreditsData && Array.isArray(userCreditsData) && userCreditsData.length > 0) {
+          // Make sure we have valid data before setting state
+          const validUserData = userCreditsData.filter(user => user && typeof user === 'object' && user.user_id);
+          setUserCredits(validUserData as UserCredit[]);
+          setTotalUsers(validUserData.length);
+          
+          // Calculate total credits across all users with null checks
+          const totalCreditsSum = validUserData.reduce((sum, user) => {
+            const limit = user && user.photos_limit ? Number(user.photos_limit) : 0;
+            return sum + (isNaN(limit) ? 0 : limit);
+          }, 0);
+          
+          setTotalCredits(totalCreditsSum);
+          
+          // Set first user as selected by default if none is selected
+          if (!selectedUserId && validUserData.length > 0) {
+            setSelectedUserId(validUserData[0].user_id);
+            setSelectedUserDetails(validUserData[0] as UserCredit);
+          }
         }
+      } catch (error) {
+        console.error('Error in user credits fetch:', error);
+        // Continue with other fetches even if this one fails
       }
       
-      // Fetch total images
-      const { count: imagesCount, error: imagesError } = await supabase
-        .from('images')
-        .select('*', { count: 'exact', head: true });
-      
-      if (!imagesError && imagesCount !== null) {
-        setTotalImages(imagesCount);
+      // Fetch total images with error handling
+      try {
+        const { count: imagesCount, error: imagesError } = await supabase
+          .from('images')
+          .select('*', { count: 'exact', head: true });
+        
+        if (!imagesError && imagesCount !== null) {
+          setTotalImages(imagesCount);
+        }
+      } catch (error) {
+        console.error('Error fetching images count:', error);
+        // Continue with default values
       }
       
       // Fetch videos and FAQs
-      await fetchVideos();
-      await fetchFaqs();
+      await Promise.allSettled([
+        fetchVideos(),
+        fetchFaqs()
+      ]);
       
     } catch (error) {
       console.error('Error in fetchData:', error);
       toast.error('Failed to fetch dashboard data');
+      setError('Error loading dashboard data');
     } finally {
       setIsLoading(false);
     }
@@ -143,8 +172,17 @@ export default function AdminPage() {
       if (videosError) {
         console.error('Error fetching videos:', videosError);
         setVideos(defaultVideoTutorials);
-      } else if (videosData && videosData.length > 0) {
-        setVideos(videosData as VideoTutorial[]);
+      } else if (videosData && Array.isArray(videosData) && videosData.length > 0) {
+        // Validate video data
+        const validVideos = videosData.filter(video => 
+          video && typeof video === 'object' && video.id && video.title && video.videoId
+        );
+        
+        if (validVideos.length > 0) {
+          setVideos(validVideos as VideoTutorial[]);
+        } else {
+          setVideos(defaultVideoTutorials);
+        }
       } else {
         setVideos(defaultVideoTutorials);
       }
@@ -165,8 +203,17 @@ export default function AdminPage() {
       if (faqsError) {
         console.error('Error fetching FAQs:', faqsError);
         setFaqs(defaultFaqItems);
-      } else if (faqsData && faqsData.length > 0) {
-        setFaqs(faqsData as FaqItem[]);
+      } else if (faqsData && Array.isArray(faqsData) && faqsData.length > 0) {
+        // Validate FAQ data
+        const validFaqs = faqsData.filter(faq => 
+          faq && typeof faq === 'object' && faq.id && faq.question && faq.answer
+        );
+        
+        if (validFaqs.length > 0) {
+          setFaqs(validFaqs as FaqItem[]);
+        } else {
+          setFaqs(defaultFaqItems);
+        }
       } else {
         setFaqs(defaultFaqItems);
       }
@@ -178,7 +225,9 @@ export default function AdminPage() {
 
   // Handle user selection
   const handleUserSelect = (userId: string) => {
-    const user = userCredits.find(u => u.user_id === userId);
+    if (!userId) return;
+    
+    const user = userCredits.find(u => u && u.user_id === userId);
     setSelectedUserId(userId);
     setSelectedUserDetails(user || null);
   };
@@ -200,7 +249,7 @@ export default function AdminPage() {
       toast.loading('Adding credits...');
       
       // Find the user in our data
-      const userIndex = userCredits.findIndex(user => user.user_id === selectedUserId);
+      const userIndex = userCredits.findIndex(user => user && user.user_id === selectedUserId);
       
       if (userIndex === -1) {
         throw new Error('User not found');
@@ -209,7 +258,7 @@ export default function AdminPage() {
       // Get the current user
       const currentUser = userCredits[userIndex];
       
-      if (!currentUser.email) {
+      if (!currentUser || !currentUser.email) {
         throw new Error('User email not found');
       }
       
@@ -227,24 +276,25 @@ export default function AdminPage() {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`API error: ${errorData.message || response.statusText}`);
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(`API error: ${errorData.message || response.statusText || 'Unknown error'}`);
       }
       
-      const result = await response.json();
+      const result = await response.json().catch(() => ({ success: false, message: 'Failed to parse response' }));
       
       if (!result.success) {
         throw new Error(result.message || 'Unknown error updating credits');
       }
       
       // Calculate new limit based on API response
-      const newLimit = result.after.credits;
+      const newLimit = result.after && result.after.credits ? result.after.credits : 
+                      (currentUser.photos_limit || 0) + creditsToAdd;
       
       // Create updated user object for local state
       const updatedUser = {
         ...currentUser,
         photos_limit: newLimit,
-        plan_type: result.after.plan || planType,
+        plan_type: (result.after && result.after.plan) ? result.after.plan : (planType || 'standard'),
         updated_at: new Date().toISOString()
       };
       
@@ -261,10 +311,18 @@ export default function AdminPage() {
       }
       
       toast.dismiss();
-      toast.success(`Added ${creditsToAdd} credits to user. Previous: ${result.before.credits}, New: ${result.after.credits}`);
+      
+      const beforeCredits = result.before && result.before.credits !== undefined ? 
+                           result.before.credits : (currentUser.photos_limit || 0);
+      const afterCredits = result.after && result.after.credits !== undefined ? 
+                          result.after.credits : newLimit;
+                          
+      toast.success(`Added ${creditsToAdd} credits to user. Previous: ${beforeCredits}, New: ${afterCredits}`);
       
       // Refresh data to ensure we have the latest from the database
-      fetchData();
+      fetchData().catch(err => {
+        console.error('Error refreshing data after credit update:', err);
+      });
     } catch (error) {
       console.error('Error adding credits:', error);
       toast.dismiss();
@@ -282,13 +340,25 @@ export default function AdminPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
           <div className="flex space-x-4">
             <button
-              onClick={() => fetchData()}
+              onClick={() => fetchData().catch(err => console.error('Error refreshing data:', err))}
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
             >
               Refresh Data
             </button>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-8 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
+            <p>{error}</p>
+            <button 
+              onClick={() => fetchData().catch(err => console.error('Error retrying data fetch:', err))}
+              className="mt-2 px-3 py-1 bg-red-200 text-red-800 rounded-md hover:bg-red-300"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -474,12 +544,12 @@ export default function AdminPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {videos.map((video) => (
                       <div key={video.id} className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                        <div className="aspect-w-16 aspect-h-9">
+                        <div className="relative pt-[56.25%]">
                           <iframe
                             src={`https://www.youtube.com/embed/${video.videoId}`}
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
-                            className="w-full h-full"
+                            className="absolute top-0 left-0 w-full h-full"
                           ></iframe>
                         </div>
                         <div className="p-4">
