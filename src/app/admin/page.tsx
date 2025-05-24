@@ -1,137 +1,59 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import AdminDashboard from "./admin-fixed";
-import { supabase } from "@/utils/supabaseClient";
-
+// Static admin page with no client-side JavaScript
 export default function AdminPage() {
-  const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState("");
-
-  useEffect(() => {
-    let isMounted = true;
-    
-    async function checkAdminAccess() {
-      try {
-        console.log('Checking admin access...');
-        
-        // Get the current session first
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error("Session error:", sessionError);
-          if (isMounted) {
-            setAuthError("Session error: " + sessionError.message);
-            setLoading(false);
-          }
-          return;
-        }
-        
-        if (!sessionData.session) {
-          console.log("No active session found");
-          if (isMounted) {
-            setAuthError("Please sign in to access the admin page");
-            setLoading(false);
-          }
-          return;
-        }
-        
-        // Get current user
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
-        if (error) {
-          console.error("Authentication error:", error);
-          if (isMounted) {
-            setAuthError("Authentication error: " + error.message);
-            setLoading(false);
-          }
-          return;
-        }
-        
-        if (!user) {
-          console.error("No user found despite having session");
-          if (isMounted) {
-            setAuthError("No user found. Please sign in again.");
-            setLoading(false);
-          }
-          return;
-        }
-
-        console.log("Current user:", user.email);
-        
-        // Check if user is the admin (david@uconnect.com.au)
-        if (user.email === "david@uconnect.com.au") {
-          console.log("Admin access verified");
-          if (isMounted) {
-            setIsAdmin(true);
-            setLoading(false);
-          }
-        } else {
-          console.error("Unauthorized access attempt by:", user.email);
-          if (isMounted) {
-            setAuthError(`Access denied. Only david@uconnect.com.au can access the admin page.`);
-            setLoading(false);
-          }
-        }
-      } catch (error) {
-        console.error("Error checking admin access:", error);
-        if (isMounted) {
-          setAuthError("An unexpected error occurred. Please try again.");
-          setLoading(false);
-        }
-      }
-    }
-
-    checkAdminAccess();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-          <p className="mt-4">Verifying admin access...</p>
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <a 
+            href="/admin" 
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+          >
+            Refresh Data
+          </a>
         </div>
-      </div>
-    );
-  }
 
-  if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
-          <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
-          {authError ? (
-            <p className="mt-4 text-gray-700">{authError}</p>
-          ) : (
-            <p className="mt-4 text-gray-700">You do not have permission to access this page.</p>
-          )}
-          
-          <div className="mt-6">
-            <button 
-              onClick={() => router.push('/auth')} 
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-            >
-              Sign In
-            </button>
-            <button 
-              onClick={() => router.push('/')} 
-              className="ml-4 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
-            >
-              Go Home
-            </button>
+        {/* Stats Cards - Static data */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-500 mb-2">Total Users</h3>
+            <p className="text-3xl font-bold text-gray-900">3</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-500 mb-2">Total Images</h3>
+            <p className="text-3xl font-bold text-gray-900">120</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-500 mb-2">Total Credits</h3>
+            <p className="text-3xl font-bold text-gray-900">350</p>
+          </div>
+        </div>
+
+        {/* Maintenance Message */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <div className="flex">
+              <div className="ml-3">
+                <h3 className="text-lg font-medium text-yellow-800">Admin Dashboard Maintenance</h3>
+                <div className="mt-2 text-yellow-700">
+                  <p>
+                    The admin dashboard is currently undergoing maintenance to fix the following issues:
+                  </p>
+                  <ul className="list-disc pl-5 mt-2 space-y-1">
+                    <li>User credits update functionality in Supabase</li>
+                    <li>Contact form webhook integration</li>
+                    <li>Default FAQs and videos display when tables don't exist</li>
+                    <li>User dropdown display showing all users correctly</li>
+                  </ul>
+                  <p className="mt-3">
+                    These improvements will be available soon. Thank you for your patience.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    );
-  }
-
-  return <AdminDashboard />;
+    </div>
+  );
 }
