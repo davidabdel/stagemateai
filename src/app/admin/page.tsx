@@ -4,8 +4,32 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
 
+// Define types for our data
+interface UserCredit {
+  user_id: string;
+  email?: string;
+  photos_limit?: number;
+  plan_type?: string;
+  updated_at?: string;
+  [key: string]: any; // Allow for additional properties
+}
+
+interface VideoTutorial {
+  id: string;
+  title: string;
+  description: string;
+  videoId: string;
+  thumbnail?: string;
+}
+
+interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
 // Default video tutorials in case database fetch fails
-const defaultVideoTutorials = [
+const defaultVideoTutorials: VideoTutorial[] = [
   {
     id: '1',
     title: 'Getting Started with StageMate AI',
@@ -23,7 +47,7 @@ const defaultVideoTutorials = [
 ];
 
 // Default FAQ items in case database fetch fails
-const defaultFaqItems = [
+const defaultFaqItems: FaqItem[] = [
   {
     id: '1',
     question: 'How do I create my first image?',
@@ -43,17 +67,17 @@ const defaultFaqItems = [
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('users');
-  const [userCredits, setUserCredits] = useState([]);
+  const [userCredits, setUserCredits] = useState<UserCredit[]>([]);
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedUserDetails, setSelectedUserDetails] = useState(null);
+  const [selectedUserDetails, setSelectedUserDetails] = useState<UserCredit | null>(null);
   const [creditsToAdd, setCreditsToAdd] = useState(50);
   const [planType, setPlanType] = useState('standard');
   const [isAddingCredits, setIsAddingCredits] = useState(false);
   const [totalUsers, setTotalUsers] = useState(3);
   const [totalImages, setTotalImages] = useState(120);
   const [totalCredits, setTotalCredits] = useState(350);
-  const [videos, setVideos] = useState(defaultVideoTutorials);
-  const [faqs, setFaqs] = useState(defaultFaqItems);
+  const [videos, setVideos] = useState<VideoTutorial[]>(defaultVideoTutorials);
+  const [faqs, setFaqs] = useState<FaqItem[]>(defaultFaqItems);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -73,7 +97,7 @@ export default function AdminPage() {
         console.error('Error fetching user credits:', userCreditsError);
         toast.error('Failed to fetch user data');
       } else if (userCreditsData && userCreditsData.length > 0) {
-        setUserCredits(userCreditsData);
+        setUserCredits(userCreditsData as UserCredit[]);
         setTotalUsers(userCreditsData.length);
         
         // Calculate total credits across all users
@@ -83,7 +107,7 @@ export default function AdminPage() {
         // Set first user as selected by default if none is selected
         if (!selectedUserId && userCreditsData.length > 0) {
           setSelectedUserId(userCreditsData[0].user_id);
-          setSelectedUserDetails(userCreditsData[0]);
+          setSelectedUserDetails(userCreditsData[0] as UserCredit);
         }
       }
       
@@ -120,7 +144,7 @@ export default function AdminPage() {
         console.error('Error fetching videos:', videosError);
         setVideos(defaultVideoTutorials);
       } else if (videosData && videosData.length > 0) {
-        setVideos(videosData);
+        setVideos(videosData as VideoTutorial[]);
       } else {
         setVideos(defaultVideoTutorials);
       }
@@ -142,7 +166,7 @@ export default function AdminPage() {
         console.error('Error fetching FAQs:', faqsError);
         setFaqs(defaultFaqItems);
       } else if (faqsData && faqsData.length > 0) {
-        setFaqs(faqsData);
+        setFaqs(faqsData as FaqItem[]);
       } else {
         setFaqs(defaultFaqItems);
       }
@@ -153,7 +177,7 @@ export default function AdminPage() {
   }
 
   // Handle user selection
-  const handleUserSelect = (userId) => {
+  const handleUserSelect = (userId: string) => {
     const user = userCredits.find(u => u.user_id === userId);
     setSelectedUserId(userId);
     setSelectedUserDetails(user || null);
