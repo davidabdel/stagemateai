@@ -387,7 +387,7 @@ function AdminDashboard() {
       }
       
       // Use emails directly from Supabase if available, otherwise populate them
-      const usersWithEmails = usageData?.map(user => {
+      const usersWithEmails = usageData?.map((user: any) => {
         const userId = user.user_id;
         const shortId = userId.substring(0, 6);
         
@@ -442,7 +442,7 @@ function AdminDashboard() {
       const totalMonthlyRevenue = standardRevenue + agencyRevenue;
       
       // Calculate total images generated directly from Supabase data
-      const totalImagesGenerated = usageData?.reduce((acc, user) => acc + (user.photos_used || 0), 0) || 0;
+      const totalImagesGenerated = usageData?.reduce((acc: number, user: any) => acc + (user.photos_used || 0), 0) || 0;
       
       const stats = {
         totalUsers: totalUsers,
@@ -1577,4 +1577,6 @@ function AdminDashboard() {
   );
 }
 
-export default AdminDashboard;
+// Explicitly export the AdminDashboard component
+const AdminDashboardComponent = AdminDashboard;
+export default AdminDashboardComponent;

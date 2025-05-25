@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import AdminDashboard from "./SimpleAdminDashboard";
+// Import the admin component through the bridge file to ensure compatibility in all environments
+import AdminDashboard from "./AdminComponent";
 import { supabase } from "@/utils/supabaseClient";
 
 export default function AdminPage() {
@@ -133,5 +134,6 @@ export default function AdminPage() {
     );
   }
 
-  return <AdminDashboard />;
+  // If admin access is verified, render the admin dashboard
+  return isAdmin ? <AdminDashboard /> : null;
 }
