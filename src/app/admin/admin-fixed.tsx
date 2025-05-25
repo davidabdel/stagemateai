@@ -200,25 +200,32 @@ export default function AdminDashboard() {
   // Fetch videos from API
   async function fetchVideos() {
     try {
-      // Try to fetch from Supabase directly first
-      const { data: videosData, error: videosError } = await supabase
-        .from('videos')
-        .select('*')
-        .order('id', { ascending: true });
+      console.log('Fetching videos from API route...');
+      const response = await fetch('/api/admin/videos', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
       
-      if (videosError) {
-        console.error('Error fetching videos from Supabase:', videosError);
-        // Fall back to default videos
+      console.log('Videos API response status:', response.status);
+      
+      if (!response.ok) {
+        console.error(`Error fetching videos: ${response.status} ${response.statusText}`);
         console.log('Using default videos instead');
         setVideos(defaultVideoTutorials);
         return;
       }
       
-      if (videosData && videosData.length > 0) {
-        setVideos(videosData);
+      const data = await response.json();
+      console.log('Videos API response:', data);
+      
+      if (data.videos && Array.isArray(data.videos) && data.videos.length > 0) {
+        console.log(`Successfully fetched ${data.videos.length} videos from API`);
+        setVideos(data.videos);
       } else {
-        // No data in Supabase, use defaults
-        console.log('No videos found in Supabase, using defaults');
+        console.log('No videos found in API response, using defaults');
         setVideos(defaultVideoTutorials);
       }
     } catch (error) {
@@ -231,25 +238,32 @@ export default function AdminDashboard() {
   // Fetch FAQs from API
   async function fetchFaqs() {
     try {
-      // Try to fetch from Supabase directly first
-      const { data: faqsData, error: faqsError } = await supabase
-        .from('faqs')
-        .select('*')
-        .order('id', { ascending: true });
+      console.log('Fetching FAQs from API route...');
+      const response = await fetch('/api/admin/faqs', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
       
-      if (faqsError) {
-        console.error('Error fetching FAQs from Supabase:', faqsError);
-        // Fall back to default FAQs
+      console.log('FAQs API response status:', response.status);
+      
+      if (!response.ok) {
+        console.error(`Error fetching FAQs: ${response.status} ${response.statusText}`);
         console.log('Using default FAQs instead');
         setFaqs(defaultFaqItems);
         return;
       }
       
-      if (faqsData && faqsData.length > 0) {
-        setFaqs(faqsData);
+      const data = await response.json();
+      console.log('FAQs API response:', data);
+      
+      if (data.faqs && Array.isArray(data.faqs) && data.faqs.length > 0) {
+        console.log(`Successfully fetched ${data.faqs.length} FAQs from API`);
+        setFaqs(data.faqs);
       } else {
-        // No data in Supabase, use defaults
-        console.log('No FAQs found in Supabase, using defaults');
+        console.log('No FAQs found in API response, using defaults');
         setFaqs(defaultFaqItems);
       }
     } catch (error) {
@@ -262,21 +276,32 @@ export default function AdminDashboard() {
   async function fetchData() {
     try {
       setIsLoading(true);
-      console.log('Fetching user data from Supabase...');
+      console.log('Fetching user data from API...');
       
-      // Use let instead of const so we can reassign if needed
-      let { data: usageData, error: usageError } = await supabase
-        .from('user_usage')
-        .select('*');
+      // Fetch user credits from API instead of direct Supabase call
+      const response = await fetch('/api/admin/user-credits', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
       
-      if (usageError) {
-        console.error('Error fetching usage data:', usageError);
-        toast.error('Failed to load usage data');
+      console.log('User credits API response status:', response.status);
+      
+      if (!response.ok) {
+        console.error(`Error fetching user credits: ${response.status} ${response.statusText}`);
+        toast.error('Failed to load user data');
         return;
       }
       
-      console.log('Raw Supabase data:', usageData);
-      console.log('Successfully fetched usage data:', usageData?.length, 'users found');
+      const result = await response.json();
+      console.log('User credits API response:', result);
+      
+      // Use let instead of const so we can reassign if needed
+      let usageData = result.userCredits || [];
+      
+      console.log('Successfully fetched user data:', usageData?.length, 'users found');
       
       // Create mock user data for all three users based on the Supabase screenshots
       const mockUserData = [
