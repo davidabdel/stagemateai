@@ -95,7 +95,7 @@ type FAQ = {
   updated_at?: string;
 };
 
-export default function AdminDashboard() {
+function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [userCredits, setUserCredits] = useState<UserCredit[]>([]);
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -1576,3 +1576,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+export default AdminDashboard;
