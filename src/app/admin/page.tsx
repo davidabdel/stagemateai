@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-// Import the admin component through the bridge file to ensure compatibility in all environments
-import AdminDashboard from "./AdminComponent";
+// Import the original AdminDashboard component that was working correctly
+import AdminDashboard from "./AdminDashboard";
 import { supabase } from "@/utils/supabaseClient";
 
 export default function AdminPage() {
