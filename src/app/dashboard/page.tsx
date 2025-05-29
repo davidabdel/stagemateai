@@ -4,9 +4,10 @@ import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getListings, Listing, deleteListing, getUserCredits, UserCredits } from "@/utils/supabaseService";
-import { checkAuth, signOut } from "@/utils/authUtils";
+import { checkAuth } from "@/utils/authUtils";
 import { supabase } from "@/utils/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
+import { useAuth } from "@/components/AuthProvider";
 
 // Create a separate component to handle the search params
 function SuccessMessage() {
@@ -31,39 +32,30 @@ export default function Dashboard() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  // Store authenticated user information
-  const [_user, setUser] = useState<{ id: string, email?: string } | null>(null);
+  // Use the auth context instead of local state
+  const { user: _user, signOut: handleSignOut } = useAuth();
   const [userCredits, setUserCredits] = useState<UserCredits | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(true);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = React.useRef<HTMLDivElement>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
 
-  // Check authentication
+  // Initialize user data when authenticated
   useEffect(() => {
-    async function checkAuthentication() {
-      const user = await checkAuth();
-      if (!user) {
-        // Redirect to login if not authenticated
-        router.push('/auth');
+    async function initializeUserData() {
+      if (!_user) {
+        console.log('Dashboard: No authenticated user yet');
         return;
       }
       
-      // Get user email from Supabase
-      const { data: userData } = await supabase.auth.getUser();
-      const userWithEmail = {
-        ...user,
-        email: userData?.user?.email || ''
-      };
-      
-      setUser(userWithEmail);
+      console.log('Dashboard: Initializing user data for:', _user.email);
       
       // Ensure user records exist in the database
-      ensureUserRecordsExist(user.id, userData?.user?.email || '');
+      await ensureUserRecordsExist(_user.id, _user.email || '');
       
-      // Check if subscription has expired and fetch user credits once authenticated
-      checkSubscriptionStatus(user.id);
-      fetchUserCredits(user.id);
+      // Check if subscription has expired and fetch user credits
+      await checkSubscriptionStatus(_user.id);
+      await fetchUserCredits(_user.id);
     }
     
     // Function to ensure consolidated_users record exists in the database
@@ -210,21 +202,8 @@ export default function Dashboard() {
       }
     }
     
-    checkAuthentication();
-    
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        router.push('/auth');
-      } else if (event === 'SIGNED_IN' && session) {
-        setUser(session.user);
-      }
-    });
-    
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router]);
+    initializeUserData();
+  }, [_user, router]);
   
   // Handle click outside for profile menu
   useEffect(() => {
@@ -273,7 +252,7 @@ export default function Dashboard() {
         if (error) throw error;
         
         // Update the listings state
-        setListings(listings.filter(listing => listing.id !== id));
+        setListings(listings.filter((listing: Listing) => listing.id !== id));
       } catch (err) {
         console.error("Error deleting listing:", err);
         alert("Failed to delete listing");
@@ -416,8 +395,7 @@ export default function Dashboard() {
                     <button 
                       onClick={async () => {
                         setProfileMenuOpen(false);
-                        await signOut();
-                        router.push('/');
+                        await handleSignOut();
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                     >

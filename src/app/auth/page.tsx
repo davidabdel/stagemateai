@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "@/utils/supabaseClient";
 import Image from "next/image";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -12,6 +13,15 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { user } = useAuth();
+  
+  // If user is already authenticated, redirect to dashboard
+  useEffect(() => {
+    if (user) {
+      console.log('Auth page: User already authenticated, redirecting to dashboard');
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -56,19 +66,18 @@ export default function AuthPage() {
       
       // Get the current domain for redirection
       const currentDomain = window.location.origin;
-      console.log('Current domain for redirect:', currentDomain);
+      console.log('Auth page: Current domain for redirect:', currentDomain);
       
       // Ensure we're using the full domain for the redirect
       const redirectUrl = `${currentDomain}/dashboard`;
-      console.log('Redirect URL:', redirectUrl);
+      console.log('Auth page: Redirect URL:', redirectUrl);
       
       // Sign in with Google via Supabase
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
           // Explicitly set the site URL to match the current domain
-          // This helps ensure the redirect goes back to the right place
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -80,10 +89,11 @@ export default function AuthPage() {
         throw error;
       }
       
+      console.log('Auth page: OAuth sign-in initiated, URL:', data?.url);
       // The redirect is handled by Supabase OAuth flow
-      // If you're still getting redirected to localhost, check your Supabase Site URL setting
+      // No need to set isLoading to false as we're redirecting away
     } catch (err: unknown) {
-      console.error("Google sign-in error:", err);
+      console.error("Auth page: Google sign-in error:", err);
       setError(err instanceof Error ? err.message : "Failed to sign in with Google. Please try again.");
       setIsLoading(false);
     }
