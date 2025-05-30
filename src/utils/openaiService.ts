@@ -11,6 +11,10 @@ export async function generateStagedImage(imageUrl: string, roomType: string, st
     console.log("Starting OpenAI Images Edit API process");
     console.log("Using image URL:", imageUrl);
     
+    // Detect if running on a mobile device
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    console.log("Device type:", isMobile ? "Mobile" : "Desktop");
+    
     // Call our server-side API route to handle the OpenAI Images Edit API call
     try {
       console.log("Calling server-side API route for image editing");
@@ -25,7 +29,11 @@ export async function generateStagedImage(imageUrl: string, roomType: string, st
           roomType,
           styleNotes,
           userId,
+          isMobile, // Flag to indicate if request is from mobile
         }),
+        // Add cache control and other options for better mobile compatibility
+        cache: 'no-store',
+        credentials: 'same-origin',
       });
       
       if (!response.ok) {

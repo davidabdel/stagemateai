@@ -13,7 +13,10 @@ export async function POST(request: NextRequest) {
   try {
     // Parse the request body
     const body = await request.json();
-    const { imageUrl, roomType, styleNotes, userId } = body;
+    const { imageUrl, roomType, styleNotes, userId, isMobile } = body;
+    
+    // Log if request is from mobile device
+    console.log('Server: Request from mobile device:', isMobile ? 'Yes' : 'No');
     
     // Check if userId is provided
     if (!userId) {
@@ -75,7 +78,21 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
       try {
         // Download the image from the URL
         console.log('Server: Downloading image from URL');
-        const imageResponse = await fetch(imageUrl);
+        
+        // Use different fetch options for mobile devices
+        const fetchOptions: RequestInit = isMobile ? {
+          // Mobile-specific fetch options
+          cache: 'no-store',
+          mode: 'cors',
+          credentials: 'omit',
+          headers: {
+            'Accept': 'image/*, */*',
+          }
+        } : {};
+        
+        console.log('Server: Using fetch options:', JSON.stringify(fetchOptions));
+        const imageResponse = await fetch(imageUrl, fetchOptions);
+        
         if (!imageResponse.ok) {
           throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
         }
@@ -93,22 +110,33 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         console.log('Server: Calling OpenAI Images Edit API with gpt-image-1 model');
         console.log('Server: Using prompt:', prompt);
         
-        const response = await openai.images.edit({
-          model: "gpt-image-1",
-          image: imageFile,
-          prompt: prompt,
-          n: 1,
-          size: "1024x1024",
-          quality: "high" // Request high-quality images for better downloads
-        });
-        
-        console.log('Server: OpenAI Images Edit API response received');
-        console.log('Server: OpenAI API response structure:', JSON.stringify(response, null, 2));
-        
-        // No temporary file to clean up with the new approach
-        
-        // Handle the response
-        if (response.data && response.data.length > 0) {
+        // Add additional error handling for mobile
+        try {
+          // Use a more reliable approach for mobile devices
+          const apiOptions = {
+            model: "gpt-image-1",
+            image: imageFile,
+            prompt: prompt,
+            n: 1,
+            size: "1024x1024" as "1024x1024", // Type assertion for TypeScript
+            quality: isMobile ? "standard" as const : "high" as const // Type assertion for TypeScript
+          };
+          
+          console.log('Server: Using API options:', JSON.stringify(apiOptions, (key, value) => {
+            // Don't log the actual file content
+            if (key === 'image') return '[File Object]';
+            return value;
+          }));
+          
+          const response = await openai.images.edit(apiOptions);
+          
+          console.log('Server: OpenAI Images Edit API response received');
+          console.log('Server: OpenAI API response structure:', JSON.stringify(response, null, 2));
+          
+          // No temporary file to clean up with the new approach
+          
+          // Handle the response
+          if (response.data && response.data.length > 0) {
           let generatedImageUrl;
           
           // Check if response contains a URL
@@ -147,7 +175,19 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         // If we get here, the response structure was invalid
         console.error('Server: Invalid response structure from OpenAI:', response);
         throw new Error('Invalid response structure from OpenAI API');
-
+        } catch (error) {
+          const mobileApiError = error as Error;
+          console.error('Server: Mobile-specific OpenAI API error:', mobileApiError);
+          
+          // For mobile devices, provide a more detailed error message
+          if (isMobile) {
+            console.log('Server: Handling mobile-specific error with more details');
+            throw new Error(`Mobile API error: ${mobileApiError.message || 'Unknown error'}`); 
+          }
+          
+          // Re-throw for non-mobile devices
+          throw mobileApiError;
+        }
       } catch (openaiError) {
         console.error('Server: OpenAI API error:', openaiError);
         throw openaiError;
