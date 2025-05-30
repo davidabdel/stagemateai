@@ -10,6 +10,7 @@ import { generateStagedImage } from '@/utils/openaiService';
 import { getUserCredits } from '@/utils/supabaseService';
 import NoCreditsModal from '@/components/NoCreditsModal';
 import { convertHeicToJpeg, isHeicImage } from '@/utils/imageConverter';
+import { setupMirrorFixObserver } from '@/utils/mobileMirrorFix';
 
 export default function ClientPage() {
   const router = useRouter();
@@ -68,6 +69,13 @@ export default function ClientPage() {
       const listingId = pathSegments[pathSegments.length - 1];
       setId(listingId);
     }
+  }, []);
+  
+  // Set up the mirror fix observer for mobile devices
+  useEffect(() => {
+    // This will only run on mobile devices
+    const cleanup = setupMirrorFixObserver();
+    return cleanup; // Clean up observer on unmount
   }, []);
   
   // Function to fetch user credits
