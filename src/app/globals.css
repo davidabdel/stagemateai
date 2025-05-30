@@ -5,6 +5,15 @@ nextjs-portal {
   display: none !important;
 }
 
+/* Mobile-specific fixes */
+@media (max-width: 768px) {
+  /* Fix for mirrored AI-generated images on mobile devices */
+  .ai-generated-image {
+    transform: scaleX(-1);
+    -webkit-transform: scaleX(-1);
+  }
+}
+
 /* Animation styles for hero section */
 .animate-appear {
   animation: appear 0.6s ease forwards;
