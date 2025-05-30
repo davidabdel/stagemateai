@@ -119,7 +119,7 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
             prompt: prompt,
             n: 1,
             size: "1024x1024" as "1024x1024", // Type assertion for TypeScript
-            quality: isMobile ? "standard" as const : "high" as const // Type assertion for TypeScript
+            quality: isMobile ? "medium" as const : "high" as const // Use medium quality for mobile to reduce errors
           };
           
           console.log('Server: Using API options:', JSON.stringify(apiOptions, (key, value) => {
