@@ -686,7 +686,7 @@ export default function ClientPage() {
                         <img 
                           src={photo.staged_url} 
                           alt="AI Staged" 
-                          className="w-full h-full object-cover ai-generated-image"
+                          className="w-full h-full object-cover"
                         />
                         <a 
                           href={photo.staged_url}
