@@ -10,80 +10,85 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Check if we have a hash fragment with tokens
-        if (window.location.hash) {
-          console.log("Auth callback: Hash fragment detected, handling implicit flow");
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        
+        // Handle authorization code flow
+        if (code) {
+          console.log("Auth callback: Authorization code detected, exchanging for session");
           
-          // Let Supabase handle the hash fragment
-          const { data, error } = await supabase.auth.getSession();
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
           
           if (error) {
-            console.error("Auth callback: Error getting session from hash:", error);
+            console.error("Auth callback: Error exchanging code:", error);
             router.push("/auth?error=" + encodeURIComponent(error.message));
             return;
           }
+          
+          console.log("Auth callback: Code exchanged successfully");
+        }
+        
+        // Check if we have a hash fragment with tokens (implicit flow)
+        else if (window.location.hash) {
+          console.log("Auth callback: Hash fragment detected, handling implicit flow");
+          // Supabase will automatically handle the hash fragment
+        }
+        
+        // Get the current session (works for both flows)
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("Auth callback: Error getting session:", sessionError);
+          router.push("/auth?error=" + encodeURIComponent(sessionError.message));
+          return;
+        }
 
-          if (data?.session) {
-            console.log("Auth callback: Session established from hash");
+        if (sessionData?.session) {
+          console.log("Auth callback: Session established");
+          
+          // Check if this is a new user
+          const user = sessionData.session.user;
+          const isNewUser = user.app_metadata.provider === "google" && 
+                           user.created_at && user.last_sign_in_at &&
+                           new Date(user.created_at).getTime() === 
+                           new Date(user.last_sign_in_at).getTime();
+          
+          if (isNewUser) {
+            console.log("Auth callback: New Google user detected, creating user records");
             
-            // Check if this is a new user
-            const user = data.session.user;
-            const isNewUser = user.app_metadata.provider === "google" && 
-                             user.created_at && user.last_sign_in_at &&
-                             new Date(user.created_at).getTime() === 
-                             new Date(user.last_sign_in_at).getTime();
-            
-            if (isNewUser) {
-              console.log("Auth callback: New Google user detected, creating user records");
+            try {
+              const response = await fetch('/api/create-user-records', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  userId: user.id,
+                  email: user.email,
+                  name: user.user_metadata?.full_name || 
+                        user.user_metadata?.name || 
+                        user.email?.split('@')[0]
+                }),
+              });
               
-              try {
-                const response = await fetch('/api/create-user-records', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    userId: user.id,
-                    email: user.email,
-                    name: user.user_metadata?.full_name || 
-                          user.user_metadata?.name || 
-                          user.email?.split('@')[0]
-                  }),
-                });
-                
-                const result = await response.json();
-                console.log('User records creation result:', result);
-                
-                if (!response.ok) {
-                  console.error('Failed to create user records:', result);
-                }
-              } catch (error) {
-                console.error('Error creating user records:', error);
-                // Continue despite error - user was created in auth
+              const result = await response.json();
+              console.log('User records creation result:', result);
+              
+              if (!response.ok) {
+                console.error('Failed to create user records:', result);
               }
+            } catch (error) {
+              console.error('Error creating user records:', error);
+              // Continue despite error - user was created in auth
             }
-            
-            // Redirect to dashboard
-            console.log("Auth callback: Redirecting to dashboard");
-            router.push("/dashboard");
-          } else {
-            console.log("Auth callback: No session found in hash");
-            router.push("/auth?error=no_session");
           }
+          
+          // Redirect to dashboard
+          console.log("Auth callback: Redirecting to dashboard");
+          window.location.href = "/dashboard";
         } else {
-          // No hash fragment, check if we're being handled by the route handler
-          // If we got here without a hash, the route handler should have processed it
-          console.log("Auth callback: No hash fragment, checking for errors");
-          const params = new URLSearchParams(window.location.search);
-          const error = params.get('error');
-          if (error) {
-            router.push(`/auth?error=${error}`);
-          } else {
-            // Wait a moment for the route handler to complete
-            setTimeout(() => {
-              router.push("/dashboard");
-            }, 1000);
-          }
+          console.log("Auth callback: No session found");
+          router.push("/auth?error=no_session");
         }
       } catch (err) {
         console.error("Auth callback: Unexpected error:", err);
