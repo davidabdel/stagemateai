@@ -5,10 +5,11 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
   
-  // If there's no code, redirect to auth page
+  // If there's no code, let the page.tsx handle it (might be implicit flow with hash)
   if (!code) {
-    console.error('Auth callback: No code parameter found');
-    return NextResponse.redirect(`${requestUrl.origin}/auth?error=missing_code`);
+    console.log('Auth callback route: No code parameter found, deferring to page handler');
+    // Return empty response to let the page.tsx handle the request
+    return new NextResponse(null, { status: 200 });
   }
 
   try {
