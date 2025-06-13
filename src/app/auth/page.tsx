@@ -68,19 +68,20 @@ export default function AuthPage() {
       const currentDomain = window.location.origin;
       console.log('Auth page: Current domain for redirect:', currentDomain);
       
-      // Ensure we're using the full domain for the redirect
-      const redirectUrl = `${currentDomain}/dashboard`;
-      console.log('Auth page: Redirect URL:', redirectUrl);
+      // Set redirect to our callback page which will handle the auth response
+      const callbackUrl = `${currentDomain}/auth/callback`;
+      console.log('Auth page: Callback URL:', callbackUrl);
       
       // Sign in with Google via Supabase
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl,
-          // Explicitly set the site URL to match the current domain
+          redirectTo: callbackUrl,
+          skipBrowserRedirect: false,
+          // Configure query parameters for Google OAuth
           queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
+            prompt: 'consent'
+            // We're using the default authorization code flow, not specifying response_type
           }
         }
       });

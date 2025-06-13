@@ -1,0 +1,80 @@
+import { NextResponse } from 'next/server';
+import { supabase } from '@/utils/supabaseClient';
+
+export async function PUT(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const id = params.id;
+    const body = await request.json();
+    const { title, description, videoId, thumbnail } = body;
+    
+    // Validate required fields
+    if (!title || !videoId) {
+      return NextResponse.json(
+        { error: 'Title and YouTube Video ID are required' },
+        { status: 400 }
+      );
+    }
+    
+    // Update video
+    const { data, error } = await supabase
+      .from('videos')
+      .update({ 
+        title, 
+        description, 
+        videoId,
+        thumbnail: thumbnail || `/images/video-thumbnail-default.jpg`,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select();
+    
+    if (error) {
+      throw error;
+    }
+    
+    if (data.length === 0) {
+      return NextResponse.json(
+        { error: 'Video not found' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json({ success: true, video: data[0] });
+  } catch (error) {
+    console.error('Error updating video:', error);
+    return NextResponse.json(
+      { error: 'Failed to update video' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const id = params.id;
+    
+    // Delete video
+    const { error } = await supabase
+      .from('videos')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      throw error;
+    }
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting video:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete video' },
+      { status: 500 }
+    );
+  }
+}

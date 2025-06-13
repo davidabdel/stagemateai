@@ -14,11 +14,53 @@ export async function GET(request: NextRequest) {
   try {
     
     // Exchange the code for a session (we've already checked that code is not null above)
-    const { error } = await supabase.auth.exchangeCodeForSession(code as string);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code as string);
     
     if (error) {
       console.error('Auth callback: Error exchanging code for session:', error);
       return NextResponse.redirect(`${requestUrl.origin}/auth?error=${encodeURIComponent(error.message)}`);
+    }
+    
+    // Get the user session
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      // Check if this is a new user
+      const isNewUser = user.app_metadata.provider === "google" && 
+                       user.created_at && user.last_sign_in_at &&
+                       new Date(user.created_at).getTime() === 
+                       new Date(user.last_sign_in_at).getTime();
+      
+      if (isNewUser) {
+        console.log("Auth callback: New Google user detected, creating user records");
+        
+        try {
+          // Create user records in our custom tables
+          const response = await fetch(`${requestUrl.origin}/api/create-user-records`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              email: user.email,
+              name: user.user_metadata?.full_name || 
+                    user.user_metadata?.name || 
+                    user.email?.split('@')[0]
+            }),
+          });
+          
+          const result = await response.json();
+          console.log('User records creation result:', result);
+          
+          if (!response.ok) {
+            console.error('Failed to create user records:', result);
+          }
+        } catch (error) {
+          console.error('Error creating user records:', error);
+          // Continue despite error - user was created in auth
+        }
+      }
     }
     
     // Successful authentication, redirect to dashboard

@@ -118,11 +118,22 @@ export default function TryForFreePage() {
       
       // Get the current domain (works in both development and production)
       const domain = window.location.origin;
+      console.log('Try page: Current domain for redirect:', domain);
+      
+      // Set redirect to our callback page
+      const callbackUrl = `${domain}/auth/callback`;
+      console.log('Try page: Callback URL:', callbackUrl);
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${domain}/auth/callback`,
+          redirectTo: callbackUrl,
+          skipBrowserRedirect: false,
+          // Configure query parameters for Google OAuth
+          queryParams: {
+            prompt: 'consent'
+            // We're using the default authorization code flow, not specifying response_type
+          }
         },
       });
       
