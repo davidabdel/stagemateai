@@ -180,6 +180,10 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
             throw lastError;
           }
           
+          if (!response) {
+            throw new Error('No response received from OpenAI API');
+          }
+          
           console.log('Server: OpenAI Images Edit API response received');
           console.log('Server: OpenAI API response structure:', JSON.stringify(response, null, 2));
           
