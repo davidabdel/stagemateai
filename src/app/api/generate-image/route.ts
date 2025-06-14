@@ -87,8 +87,14 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
           credentials: 'omit',
           headers: {
             'Accept': 'image/*, */*',
-          }
-        } : {};
+            'User-Agent': 'Mozilla/5.0 (compatible; Mobile Image Processor)',
+          },
+          // Add timeout for mobile connections
+          signal: AbortSignal.timeout(30000) // 30 second timeout for mobile
+        } : {
+          // Desktop fetch options
+          signal: AbortSignal.timeout(15000) // 15 second timeout for desktop
+        };
         
         console.log('Server: Using fetch options:', JSON.stringify(fetchOptions));
         const imageResponse = await fetch(imageUrl, fetchOptions);
@@ -97,14 +103,34 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
           throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
         }
         
-        // Get the image as a buffer
+        // Get the image as a buffer with mobile-specific handling
         const imageBuffer = await imageResponse.arrayBuffer();
         console.log('Server: Image downloaded, buffer size:', imageBuffer.byteLength);
         
+        // Validate buffer size (mobile devices may have memory limitations)
+        const maxBufferSize = isMobile ? 10 * 1024 * 1024 : 50 * 1024 * 1024; // 10MB for mobile, 50MB for desktop
+        if (imageBuffer.byteLength > maxBufferSize) {
+          throw new Error(`Image too large: ${imageBuffer.byteLength} bytes (max: ${maxBufferSize} bytes)`);
+        }
+        
         // Create a file object directly from the buffer for the OpenAI API
         console.log('Server: Preparing image for OpenAI API');
-        const imageFile = await toFile(Buffer.from(imageBuffer), 'image.jpg', { type: 'image/jpeg' });
-        console.log('Server: Image file created successfully');
+        
+        // Use different file naming strategy for mobile to avoid encoding issues
+        const fileName = isMobile ? 'mobile_image.jpg' : 'image.jpg';
+        
+        try {
+          const imageFile = await toFile(Buffer.from(imageBuffer), fileName, { 
+            type: 'image/jpeg',
+            // Add mobile-specific options if needed
+            ...(isMobile && { lastModified: Date.now() })
+          });
+          console.log('Server: Image file created successfully');
+          
+          // Validate the created file
+          if (!imageFile || imageFile.size === 0) {
+            throw new Error('Failed to create valid image file from buffer');
+          }
         
         // Call the OpenAI Images Edit API using the SDK
         console.log('Server: Calling OpenAI Images Edit API with gpt-image-1 model');
@@ -128,7 +154,32 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
             return value;
           }));
           
-          const response = await openai.images.edit(apiOptions);
+          // Add retry logic for mobile devices
+          let response;
+          const maxRetries = isMobile ? 2 : 1; // More retries for mobile
+          let lastError: Error | null = null;
+          
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              console.log(`Server: API attempt ${attempt}/${maxRetries}`);
+              response = await openai.images.edit(apiOptions);
+              break; // Success, exit retry loop
+            } catch (apiError) {
+              lastError = apiError as Error;
+              console.error(`Server: API attempt ${attempt} failed:`, lastError.message);
+              
+              if (attempt < maxRetries) {
+                // Wait before retry (longer wait for mobile)
+                const waitTime = isMobile ? 2000 * attempt : 1000 * attempt;
+                console.log(`Server: Waiting ${waitTime}ms before retry...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+              }
+            }
+          }
+          
+          if (!response && lastError) {
+            throw lastError;
+          }
           
           console.log('Server: OpenAI Images Edit API response received');
           console.log('Server: OpenAI API response structure:', JSON.stringify(response, null, 2));

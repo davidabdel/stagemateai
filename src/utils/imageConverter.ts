@@ -1,4 +1,5 @@
 import heicConvert from 'heic-convert';
+import { processMobileImage, isMobileDevice } from './mobileImageProcessor';
 
 /**
  * Converts HEIC/HEIF images to JPEG format
@@ -11,8 +12,8 @@ export async function convertHeicToJpeg(file: File): Promise<File> {
       !file.name.toLowerCase().endsWith('.heif') && 
       file.type !== 'image/heic' && 
       file.type !== 'image/heif') {
-    // If not a HEIC/HEIF file, return the original file
-    return file;
+    // If not a HEIC/HEIF file, apply mobile processing if needed
+    return processMobileImage(file);
   }
 
   try {
@@ -23,18 +24,19 @@ export async function convertHeicToJpeg(file: File): Promise<File> {
     const jpegBuffer = await heicConvert({
       buffer: Buffer.from(arrayBuffer),
       format: 'JPEG',
-      quality: 0.9 // Set the quality of the output JPEG (0-1)
+      quality: isMobileDevice() ? 0.8 : 0.9 // Lower quality for mobile to prevent errors
     });
     
     // Create a new File object with the converted JPEG data
     const fileName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
     const jpegFile = new File([jpegBuffer], fileName, { type: 'image/jpeg' });
     
-    return jpegFile;
+    // Apply mobile processing to the converted file if on mobile
+    return processMobileImage(jpegFile);
   } catch (error) {
     console.error('Error converting HEIC to JPEG:', error);
-    // If conversion fails, return the original file
-    return file;
+    // If conversion fails, apply mobile processing to original file
+    return processMobileImage(file);
   }
 }
 
