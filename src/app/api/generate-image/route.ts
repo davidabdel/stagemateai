@@ -119,19 +119,18 @@ This is a ${roomType?.toLowerCase() || 'room'}${styleNotes ? ` with ${styleNotes
         // Use different file naming strategy for mobile to avoid encoding issues
         const fileName = isMobile ? 'mobile_image.jpg' : 'image.jpg';
         
-        try {
-          const imageFile = await toFile(Buffer.from(imageBuffer), fileName, { 
-            type: 'image/jpeg',
-            // Add mobile-specific options if needed
-            ...(isMobile && { lastModified: Date.now() })
-          });
-          console.log('Server: Image file created successfully');
-          
-          // Validate the created file
-          if (!imageFile || imageFile.size === 0) {
-            throw new Error('Failed to create valid image file from buffer');
-          }
+        const imageFile = await toFile(Buffer.from(imageBuffer), fileName, { 
+          type: 'image/jpeg',
+          // Add mobile-specific options if needed
+          ...(isMobile && { lastModified: Date.now() })
+        });
+        console.log('Server: Image file created successfully');
         
+        // Validate the created file
+        if (!imageFile || imageFile.size === 0) {
+          throw new Error('Failed to create valid image file from buffer');
+        }
+      
         // Call the OpenAI Images Edit API using the SDK
         console.log('Server: Calling OpenAI Images Edit API with gpt-image-1 model');
         console.log('Server: Using prompt:', prompt);
