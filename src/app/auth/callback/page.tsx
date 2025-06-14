@@ -83,12 +83,31 @@ export default function AuthCallback() {
             }
           }
           
+          // Wait a moment to ensure the session is fully established
+          console.log("Auth callback: Session established, waiting for auth state to propagate...");
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Force refresh the session to ensure it's properly stored
+          await supabase.auth.refreshSession();
+          
           // Redirect to dashboard
           console.log("Auth callback: Redirecting to dashboard");
           window.location.href = "/dashboard";
         } else {
-          console.log("Auth callback: No session found");
-          router.push("/auth?error=no_session");
+          console.log("Auth callback: No session found, retrying...");
+          
+          // Sometimes the session isn't immediately available, retry once
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const { data: retrySessionData } = await supabase.auth.getSession();
+          
+          if (retrySessionData?.session) {
+            console.log("Auth callback: Session found on retry, redirecting to dashboard");
+            await supabase.auth.refreshSession();
+            window.location.href = "/dashboard";
+          } else {
+            console.log("Auth callback: No session found after retry");
+            router.push("/auth?error=no_session");
+          }
         }
       } catch (err) {
         console.error("Auth callback: Unexpected error:", err);

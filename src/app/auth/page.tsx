@@ -23,6 +23,25 @@ export default function AuthPage() {
     }
   }, [user, router]);
 
+  // Also check for session on mount to handle race conditions
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && !user) {
+          console.log('Auth page: Found existing session, redirecting to dashboard');
+          router.push('/dashboard');
+        }
+      } catch (error) {
+        console.error('Auth page: Error checking session:', error);
+      }
+    };
+
+    // Small delay to let any ongoing auth operations complete
+    const timer = setTimeout(checkExistingSession, 500);
+    return () => clearTimeout(timer);
+  }, [user, router]);
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!email || !password) {
