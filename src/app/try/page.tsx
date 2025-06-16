@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { supabase } from "@/utils/supabaseClient";
+import Image from "next/image";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import { useRouter } from "next/navigation";
 
