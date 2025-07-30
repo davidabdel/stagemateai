@@ -36,12 +36,11 @@ export default function Home() {
               {/* Left side - Header content */}
               <div className="flex flex-col items-start text-left md:w-[45%] gap-6">
                 <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                  <span className="block font-extrabold tracking-tight uppercase text-primary">Skip the Photographer.</span>
-                  <span className="block font-extrabold tracking-tight uppercase text-primary">List in Minutes</span>
+                  <span className="block font-extrabold tracking-tight uppercase text-primary">Empty Listings Don't Sell. Stage Them Instantly.</span>
                 </h1>
                 
                 <p className="text-lg md:text-xl text-gray-600">
-                  Use StageMate to instantly clean, enhance, and transform your property photos — no staging, no photographers, no delays.
+                  Stop losing buyers to empty, uninspiring listings. StageMate AI helps you showcase a property's true potential and get more offers.
                 </p>
                 
                 <div className="flex flex-wrap gap-4 mt-2">
@@ -68,10 +67,10 @@ export default function Home() {
               <div className="md:w-[55%]">
                 <div className="relative">
                   <BeforeAfterSlider 
-                    beforeImage="/images/After_StageMate.jpeg"
-                    afterImage="/images/Before_StageMate.jpeg"
-                    beforeAlt="After AI staging - Living room"
-                    afterAlt="Before staging - Living room"
+                    beforeImage="/images/staged-1.png"
+                    afterImage="/images/empty_1.jpg"
+                    beforeAlt="Living and dining room after digital staging"
+                    afterAlt="Empty living and dining room before digital staging"
                     height={500}
                     width={800}
                   />
@@ -136,8 +135,8 @@ export default function Home() {
               <p className="text-gray-600 mb-4">Download ready-to-go, real-estate perfect images.</p>
               <div className="rounded-lg overflow-hidden shadow-sm border border-gray-100">
                 <img 
-                  src="/images/kidsroom_after.png" 
-                  alt="Beautifully staged kids room after AI processing" 
+                  src="/images/staged-3.png" 
+                  alt="Beautifully staged balcony after AI processing" 
                   className="w-full h-auto"
                 />
               </div>
