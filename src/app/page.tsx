@@ -36,7 +36,7 @@ export default function Home() {
               {/* Left side - Header content */}
               <div className="flex flex-col items-start text-left md:w-[45%] gap-6">
                 <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                  <span className="block font-extrabold tracking-tight uppercase text-primary">Empty Listings Don't Sell. Stage Them Instantly.</span>
+                  <span className="block font-extrabold tracking-tight Captilize text-primary">Empty Listings Don't Sell.</span>
                 </h1>
                 
                 <p className="text-lg md:text-xl text-gray-600">
@@ -100,11 +100,11 @@ export default function Home() {
                 <span className="text-[#0052CC] font-bold text-xl">1</span>
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Snap a Photo</h3>
-              <p className="text-gray-600 mb-4">Upload any room — even messy ones — from your phone or camera.</p>
+              <p className="text-gray-600 mb-4">Upload a photo of any room — from your phone or camera.</p>
               <div className="rounded-lg overflow-hidden shadow-sm border border-gray-100">
                 <img 
-                  src="/images/kidsroom_before.jpeg" 
-                  alt="Messy kids room before staging" 
+                  src="/images/empty_2.jpg" 
+                  alt="Lounge room before staging" 
                   className="w-full h-auto"
                 />
               </div>
@@ -119,7 +119,7 @@ export default function Home() {
               <p className="text-gray-600 mb-4">Our AI removes clutter, enhances lighting, and adds tasteful virtual decor.</p>
               <div className="rounded-lg overflow-hidden shadow-sm border border-gray-100">
                 <img 
-                  src="/images/kidsroom_ai.png" 
+                  src="/images/StagedAI_whiz.png" 
                   alt="AI processing the kids room image" 
                   className="w-full h-auto"
                 />
@@ -135,8 +135,8 @@ export default function Home() {
               <p className="text-gray-600 mb-4">Download ready-to-go, real-estate perfect images.</p>
               <div className="rounded-lg overflow-hidden shadow-sm border border-gray-100">
                 <img 
-                  src="/images/staged-3.png" 
-                  alt="Beautifully staged balcony after AI processing" 
+                  src="/images/staged-2.png" 
+                  alt="Beautifully staged Living Room by StageMate AI" 
                   className="w-full h-auto"
                 />
               </div>
