@@ -214,10 +214,10 @@ export default function AuthPage() {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-4/5 max-w-xl">
             <BeforeAfterSlider 
-              beforeImage="/images/empty_4.jpg"
-              afterImage="/images/staged-4.png"
-              beforeAlt="Before"
-              afterAlt="After"
+              beforeImage="/images/staged-4.png"
+              afterImage="/images/empty_4.jpg"
+              beforeAlt="After"
+              afterAlt="Before"
               height={500}
               width={800}
             />
