@@ -101,27 +101,32 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Login form */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-8 bg-white">
-        <div className="max-w-md w-full">
-          {/* Logo */}
-          <div className="mb-8">
-            <img 
-              src="/images/AIStars.png" 
-              alt="StageMate AI Logo" 
-              width={120} 
-              height={40} 
-              className="h-10 w-auto"
-            />
-          </div>
-          
-          <h1 className="text-2xl font-bold mb-6">Sign in</h1>
-          
+    <div className="min-h-screen">
+      <div className="flex flex-col justify-center items-center p-8 md:p-16 w-full max-w-xl mx-auto">
+        {/* Logo */}
+        <div className="mb-8 text-center">
+          <img 
+            src="/images/3.png" 
+            alt="StageMate AI Logo" 
+            width={140} 
+            height={40} 
+            className="h-10 w-auto mx-auto"
+          />
+        </div>
+        
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-center">
+          <span className="block font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-800 via-gray-600 to-amber-400">
+            Welcome Back
+          </span>
+        </h1>
+
+        <div className="h-16"></div>
+        
+        <div className="w-full max-w-md">
           {/* Google Sign In Button */}
           <button
             onClick={handleGoogleSignIn}
-            className="w-full rounded-md border border-gray-300 bg-white text-gray-700 font-medium py-3 transition-colors flex justify-center items-center mb-6 hover:bg-gray-50"
+            className="w-full rounded-lg border border-gray-300 bg-white text-gray-700 font-medium py-3 transition-colors flex justify-center items-center mb-6 hover:bg-gray-50 shadow-sm"
             disabled={isLoading}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5 mr-2">
@@ -135,20 +140,20 @@ export default function AuthPage() {
           
           {/* Divider */}
           <div className="flex items-center my-6">
-            <div className="flex-1 border-t border-gray-300"></div>
+            <div className="flex-1 border-t border-gray-200"></div>
             <div className="px-4 text-sm text-gray-500">OR</div>
-            <div className="flex-1 border-t border-gray-300"></div>
+            <div className="flex-1 border-t border-gray-200"></div>
           </div>
           
           {/* Email/Password Form */}
-          <form className="flex flex-col gap-4" onSubmit={handleLogin}>
+          <form className="space-y-5" onSubmit={handleLogin}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
                 id="email"
                 type="email"
-                placeholder="Email"
-                className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#6ecfc9] focus:border-transparent"
+                placeholder="Enter your email"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 disabled={isLoading}
@@ -161,7 +166,7 @@ export default function AuthPage() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
                 <button 
                   onClick={() => router.push('/auth/reset-password')} 
-                  className="text-sm text-[#6ecfc9] hover:underline bg-transparent border-none p-0 cursor-pointer"
+                  className="text-sm text-blue-700 hover:underline bg-transparent border-none p-0 cursor-pointer"
                 >
                   Forgot password?
                 </button>
@@ -169,8 +174,8 @@ export default function AuthPage() {
               <input
                 id="password"
                 type="password"
-                placeholder="Password"
-                className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#6ecfc9] focus:border-transparent"
+                placeholder="Enter your password"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
@@ -179,7 +184,7 @@ export default function AuthPage() {
             </div>
             
             {error && (
-              <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-md">
+              <div className="p-4 mb-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-600 font-medium">{error}</p>
                 <p className="text-red-500 text-sm mt-1">
                   If you're having trouble, please try again or contact support at <a href="mailto:support@stagemateai.com" className="underline">support@stagemateai.com</a>
@@ -189,12 +194,12 @@ export default function AuthPage() {
             
             <button
               type="submit"
-              className="w-full rounded-md bg-black hover:bg-gray-800 text-white font-medium py-2.5 transition-colors flex justify-center items-center mt-2"
+              className="w-full bg-gradient-to-r from-blue-800 via-gray-600 to-amber-400 hover:from-blue-900 hover:via-gray-700 hover:to-amber-500 text-white font-bold py-3 rounded-lg transition-all flex justify-center items-center shadow-md"
               disabled={isLoading}
             >
               {isLoading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -207,33 +212,14 @@ export default function AuthPage() {
           </form>
           
           {/* Sign Up Link */}
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account? <button 
                 onClick={() => router.push('/try')} 
-                className="text-[#6ecfc9] hover:underline font-medium bg-transparent border-none p-0 cursor-pointer"
+                className="text-blue-700 hover:underline font-medium bg-transparent border-none p-0 cursor-pointer"
               >
                 Sign Up
               </button>
-            </p>
-          </div>
-        </div>
-      </div>
-      
-      {/* Right side - Image slider with teal gradient background */}
-      <div className="hidden md:block md:w-1/2 bg-gradient-to-br from-white via-[#d9f5f2] to-[#6ecfc9] relative flex items-center justify-center">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-4/5 max-w-xl">
-            <BeforeAfterSlider 
-              beforeImage="/images/kidsroom_after.png"
-              afterImage="/images/kidsroom_before.jpeg"
-              beforeAlt="After AI staging - Kids room"
-              afterAlt="Before staging - Kids room"
-              height={500}
-              width={800}
-            />
-            <p className="text-center text-black text-sm mt-4 font-medium">
-              See the transformation with StageMate AI
             </p>
           </div>
         </div>
