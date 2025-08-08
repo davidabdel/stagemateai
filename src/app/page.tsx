@@ -238,61 +238,7 @@ export default function Home() {
         </div>
       </section>
       
-      {/* Benefits for Real Estate Agents */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">Benefits for Real Estate Agents</h2>
-          </div>
-          
-          <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
-            {/* Benefit 1 */}
-            <div className="text-center">
-              <div className="mb-6 flex justify-center">
-                <svg className="h-12 w-12 text-blue-700" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Higher Sale Prices</h3>
-              <p className="text-gray-600 text-sm">Staged properties consistently sell for more than empty rooms</p>
-            </div>
-            
-            {/* Benefit 2 */}
-            <div className="text-center">
-              <div className="mb-6 flex justify-center">
-                <svg className="h-12 w-12 text-blue-700" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 2a6 6 0 110 12 6 6 0 010-12z" />
-                  <path d="M10 4a1 1 0 011 1v4.586l2.707 2.707a1 1 0 01-1.414 1.414l-3-3A1 1 0 019 10V5a1 1 0 011-1z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Faster Sales</h3>
-              <p className="text-gray-600 text-sm">Reduce days on market by helping buyers visualize living in the space</p>
-            </div>
-            
-            {/* Benefit 3 */}
-            <div className="text-center">
-              <div className="mb-6 flex justify-center">
-                <svg className="h-12 w-12 text-blue-700" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Competitive Edge</h3>
-              <p className="text-gray-600 text-sm">Stand out from other agents by offering premium marketing materials</p>
-            </div>
-            
-            {/* Benefit 4 */}
-            <div className="text-center">
-              <div className="mb-6 flex justify-center">
-                <svg className="h-12 w-12 text-blue-700" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-1a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v1h-3zM4.75 14.094A5.973 5.973 0 004 17v1H1v-1a3 3 0 014.75-2.906z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">More Listings</h3>
-              <p className="text-gray-600 text-sm">Impress clients and win more listings for your real estate business</p>
-            </div>
-          </div>
-        </div>
-      </section>
+
       
       {/* What Your Clients Get Section */}
       <section className="py-16 bg-gray-50">
@@ -386,7 +332,7 @@ export default function Home() {
               </div>
             </div>
             
-            <Link href="/try" className="inline-block rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold px-8 py-4 text-xl shadow-md transition-all">
+            <Link href="/try" className="inline-block rounded-md bg-gradient-to-r from-blue-800 via-gray-600 to-amber-400 hover:from-blue-900 hover:via-gray-700 hover:to-amber-500 text-white font-bold px-8 py-4 text-xl shadow-md transition-all">
               Try StageMate AI Free
             </Link>
           </div>
