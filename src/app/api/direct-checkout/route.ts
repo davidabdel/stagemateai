@@ -14,14 +14,34 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log('Request body:', body);
     
-    const { priceId, userId } = body;
-    
-    if (!priceId) {
-      console.error('Missing priceId in request');
-      return NextResponse.json({ error: 'Missing priceId' }, { status: 400 });
+    const { priceId, productId, interval = 'month', userId } = body as { priceId?: string; productId?: string; interval?: 'month' | 'year'; userId?: string };
+
+    let resolvedPriceId = priceId as string | undefined;
+
+    // Allow resolving by productId for monthly/yearly selections
+    if (!resolvedPriceId && productId) {
+      console.log(`Resolving price for product ${productId} with interval ${interval}`);
+      const prices = await stripe.prices.list({
+        product: productId,
+        active: true,
+        limit: 100,
+      });
+      const recurringPrices = prices.data.filter(p => p.recurring && p.recurring.interval === interval);
+      if (recurringPrices.length === 0) {
+        console.error('No recurring prices found for product/interval', { productId, interval });
+        return NextResponse.json({ error: `No active ${interval} price found for product` }, { status: 400 });
+      }
+      // Choose the first active price (you can sort by created if multiple)
+      resolvedPriceId = recurringPrices.sort((a,b) => (a.created || 0) - (b.created || 0)).pop()!.id;
+      console.log('Resolved price ID:', resolvedPriceId);
+    }
+
+    if (!resolvedPriceId) {
+      console.error('Missing priceId or resolvable productId in request');
+      return NextResponse.json({ error: 'Missing priceId or productId' }, { status: 400 });
     }
     
-    console.log(`Creating direct checkout session for price ${priceId}`);
+    console.log(`Creating direct checkout session for price ${resolvedPriceId}`);
     console.log('User ID from request:', userId);
     
     // Store the userId in the client_reference_id for later use
@@ -35,7 +55,7 @@ export async function POST(req: NextRequest) {
       payment_method_types: ['card'],
       line_items: [
         {
-          price: priceId,
+          price: resolvedPriceId,
           quantity: 1,
         },
       ],

@@ -15,7 +15,10 @@ interface SubscriptionPlan {
   credits: number;
   features: string[];
   is_active: boolean;
-  stripe_price_id: string; // required for Stripe checkout
+  stripe_price_id: string; // required for Stripe checkout (default/yearly)
+  // Optional alternate Stripe price IDs if you want separate monthly/yearly SKUs
+  stripe_price_id_monthly?: string;
+  stripe_price_id_yearly?: string;
 }
 
 export default function UpgradePage() {
@@ -29,7 +32,12 @@ export default function UpgradePage() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  
+  const [billingCycle, setBillingCycle] = useState<'yearly' | 'monthly'>('yearly');
+
+  // Stripe Monthly Product IDs provided by user
+  const STANDARD_MONTHLY_PRODUCT_ID = 'prod_SqmvT8L1NcuGZL';
+  const AGENCY_MONTHLY_PRODUCT_ID = 'prod_SqmwyQvIctMvhg';
+
   // Function to fetch user credits
   const fetchUserCredits = async (userId: string) => {
     try {
@@ -88,13 +96,30 @@ export default function UpgradePage() {
     setSelectedPlan(planId);
     try {
       console.log('Starting checkout process for plan:', planId);
-      const selectedPlan = plans.find(plan => plan.id === planId);
-      if (!selectedPlan) {
+      const selected = plans.find(plan => plan.id === planId);
+      if (!selected) {
         console.error('Plan not found:', planId, 'Available plans:', plans);
         throw new Error('Plan not found');
       }
-      
-      console.log('Selected plan:', selectedPlan, 'Stripe price ID:', selectedPlan.stripe_price_id);
+      // Decide which Stripe identifier to use based on billing cycle
+      let priceToUse = selected.stripe_price_id;
+      let productToUse: string | undefined = undefined;
+      if (billingCycle === 'monthly') {
+        // Prefer a monthly price ID on the record; otherwise, use provided product IDs to resolve
+        if (selected.stripe_price_id_monthly) {
+          priceToUse = selected.stripe_price_id_monthly;
+        } else {
+          if (selected.name === 'Standard') {
+            productToUse = STANDARD_MONTHLY_PRODUCT_ID;
+          } else if (selected.name === 'Agency Plan') {
+            productToUse = AGENCY_MONTHLY_PRODUCT_ID;
+          }
+        }
+      } else if (billingCycle === 'yearly' && selected.stripe_price_id_yearly) {
+        priceToUse = selected.stripe_price_id_yearly;
+      }
+
+      console.log('Selected plan:', selected, 'Billing cycle:', billingCycle, 'Stripe identifiers used:', { priceToUse, productToUse });
 
       // We'll let Stripe collect the email during checkout
       console.log('Proceeding to Stripe checkout where user will enter email if needed');
@@ -106,7 +131,9 @@ export default function UpgradePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          priceId: selectedPlan.stripe_price_id,
+          priceId: productToUse ? undefined : priceToUse,
+          productId: productToUse,
+          interval: billingCycle === 'monthly' ? 'month' : 'year',
           userId: user?.id || ''
         }),
       });
@@ -425,6 +452,20 @@ export default function UpgradePage() {
                 ? "You've used all your free credits. Upgrade to continue transforming your real estate photos with AI."
                 : "Manage your subscription plan to better suit your needs."}
             </p>
+            <div className="inline-flex items-center mt-6 rounded-lg border border-[#e5e7eb] dark:border-[#334155] overflow-hidden">
+              <button
+                className={`px-4 py-2 text-sm font-medium ${billingCycle === 'monthly' ? 'bg-[#2563eb] text-white' : 'bg-white dark:bg-[#18181b] text-[#1d2939] dark:text-white'}`}
+                onClick={() => setBillingCycle('monthly')}
+              >
+                Monthly (+20%)
+              </button>
+              <button
+                className={`px-4 py-2 text-sm font-medium ${billingCycle === 'yearly' ? 'bg-[#2563eb] text-white' : 'bg-white dark:bg-[#18181b] text-[#1d2939] dark:text-white'}`}
+                onClick={() => setBillingCycle('yearly')}
+              >
+                Yearly
+              </button>
+            </div>
           </div>
           
           {isLoading ? (
@@ -478,7 +519,7 @@ export default function UpgradePage() {
                     <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                     </svg>
-                    <span>3 photos per month</span>
+                    <span>Up to 3 images or 7 days (whichever happens first)</span>
                   </li>
                 </ul>
                 <div className="absolute top-0 right-0 bg-[#6ecfc9] text-white text-xs font-semibold px-3 py-1 rounded-bl-lg rounded-tr-lg">
@@ -507,6 +548,11 @@ export default function UpgradePage() {
                 const isAgencyPlan = plan.name === "Agency Plan";
                 // Check if this is the Standard Plan
                 const isStandardPlan = plan.name === "Standard";
+
+                // Override pricing and credits per new business rules
+                const baseYearlyPrice = isStandardPlan ? 199 : isAgencyPlan ? 397 : plan.price;
+                const displayPrice = billingCycle === 'yearly' ? baseYearlyPrice : Math.round(baseYearlyPrice * 1.2);
+                const displayCredits = isStandardPlan ? 100 : isAgencyPlan ? 300 : plan.credits;
                 
                 return (
                   <div 
@@ -527,18 +573,18 @@ export default function UpgradePage() {
                         Active until: {new Date(userCredits.subscription_end_date).toLocaleDateString()}
                       </div>
                     )}
-                    {isFeatured && !isAgencyPlan && (
+                    {(isStandardPlan) && (
                       <div className="absolute top-0 right-0 bg-[#2563eb] text-white text-xs font-semibold px-3 py-1 rounded-bl-lg rounded-tr-lg">
-                        BEST VALUE
+                        MOST POPULAR
                       </div>
                     )}
                     <h3 className="text-xl font-semibold text-[#1d2939] dark:text-white mb-2">{plan.name}</h3>
                     <div className="text-3xl font-bold text-[#2563eb] mb-4">
-                      ${plan.price}<span className="text-sm text-[#64748b] dark:text-[#94a3b8] font-normal">/month</span>
+                      ${displayPrice}<span className="text-sm text-[#64748b] dark:text-[#94a3b8] font-normal">/{billingCycle === 'yearly' ? 'year' : 'month'}</span>
                     </div>
                     <p className="text-[#64748b] dark:text-[#94a3b8] mb-4">{plan.description}</p>
                     <div className="mb-4">
-                      <span className="text-[#2563eb] font-semibold">{plan.credits} credits</span>
+                      <span className="text-[#2563eb] font-semibold">{displayCredits} credits</span>
                     </div>
                     <ul className="mb-6 flex-grow">
                       {plan.features.map((feature, featureIndex) => (

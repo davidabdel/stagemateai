@@ -21,7 +21,7 @@ export default function Home() {
             </a>
           </div>
           <nav className="hidden md:flex items-center space-x-8">
-            <Link href="/features" className="text-gray-600 hover:text-blue-800 text-sm font-medium">Features</Link>
+            <Link href="#why" className="text-gray-600 hover:text-blue-800 text-sm font-medium">Features</Link>
             <Link href="/pricing" className="text-gray-600 hover:text-blue-800 text-sm font-medium">Pricing</Link>
             <Link href="/about" className="text-gray-600 hover:text-blue-800 text-sm font-medium">About</Link>
           </nav>
@@ -170,7 +170,7 @@ export default function Home() {
       </section>
       
       {/* Transform Your Real Estate Business Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-gray-50" id="why">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <p className="text-blue-700 font-medium mb-2">Why Choose StageMate AI</p>

@@ -363,7 +363,7 @@ export default function Dashboard() {
                               {_user?.email?.split('@')[0] || 'My Lovable'}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {userCredits?.plan_type?.toUpperCase() || 'FREE'}
+                              {userCredits?.plan_type?.toUpperCase() || 'TRIAL'}
                             </p>
                           </div>
                         </div>
